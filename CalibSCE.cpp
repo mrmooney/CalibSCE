@@ -37,26 +37,36 @@ using namespace std;
 const Char_t *inputFileLaser = "data/laserDataSCE_NEW.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW.root";
-const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW_withMCS.root";
+//const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW_withMCS.root";
 //const Char_t *inputFileCosmic = "data/mcsample_small_combined.root";
-//const Char_t *inputFileCosmic = "data/newMCsample_50000events.root";
+//const Char_t *inputFileCosmic = "data/oldMCsample_50000events.root";
+const Char_t *inputFileCosmic = "data/newMCsample_2Mevents.root";
+//const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP.root";
+//const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP_withMCS.root";
 TFile* outputFile = new TFile("output.root","RECREATE");
 
 const Double_t Lx = 2.5;
 const Double_t Ly = 2.5;
 const Double_t Lz = 10.0;
+//const Double_t Lx = 3.6;
+//const Double_t Ly = 6.0;
+//const Double_t Lz = 7.2;
 
+const Double_t relAngleCut = 30.0;
 const Double_t maxXdist = 0.05;
 const Double_t maxYdist = 0.20;
 const Double_t maxZdist = 0.20;
 
-const Int_t maxNumTracks = 20000;
-const Int_t minTrackMCS_anode = 6.0;
-const Int_t minTrackMCS_cathode = 2.5;
+//const Int_t maxNumTracks = -1;
+const Int_t maxNumTracks = 500000;
+const Double_t minTrackMCS_anode = 6.5;
+const Double_t minTrackMCS_cathode = 3.0;
+const Double_t minTrackMCS_crossing = 2.5;
+
+Int_t nCalibDivisions = 25; // MICROBOONE
+//Int_t nCalibDivisions = 18; // PROTODUNE-SP
 
 const Double_t piVal = 3.14159265;
-
-Int_t nCalibDivisions = 25;
 
 Int_t nCalibDivisions_x;
 Int_t nCalibDivisions_y;
@@ -128,7 +138,7 @@ void updateCalibTrueTrack(calibTrackInfo &calibTrack);
 void updateAllCalibTrueTracks(vector<calibTrackInfo> &calibTracks, Int_t iterNum);
 void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo> &cosmicTracks, Double_t distScale, Double_t maxDistFactor, Int_t cosmicTruthMode, Int_t numIterations);
 void saveTrackInfo(const vector<trackInfo> &tracks);
-  
+
 Int_t main(Int_t argc, Char_t** argv)
 {
   TStopwatch timer;
@@ -139,15 +149,15 @@ Int_t main(Int_t argc, Char_t** argv)
   nCalibDivisions_z = TMath::Nint((Lz/Lx)*((Double_t)nCalibDivisions));
   
   vector<trackInfo> laserTracks = getTrackSet(1);
-  vector<trackInfo> cosmicTracks = getTrackSet(2);
-  //vector<trackInfo> cosmicTracks = getLArSoftTrackSet(2);
+  //vector<trackInfo> cosmicTracks = getTrackSet(2);
+  vector<trackInfo> cosmicTracks = getLArSoftTrackSet(2);
 
-  //saveTrackInfo(cosmicTracks);
+  saveTrackInfo(cosmicTracks);
   
   ////doCalibration(laserTracks,cosmicTracks,0.05,3,1,1);
   ////doCalibration(laserTracks,cosmicTracks,0.02,3,1,1);
   //////doCalibration(laserTracks,cosmicTracks,0.01,3,0,2);
-  doCalibration(laserTracks,cosmicTracks,0.01,3,1,1);
+  doCalibration(laserTracks,cosmicTracks,0.01,3,1,1); // Nominal Configuration
   
   timer.Stop();
   cout << "Calibration Time:  " << timer.CpuTime() << " sec." << endl;
@@ -258,19 +268,19 @@ vector<Double_t> getParabolaParameters(const vector<elecInfo> &parabola_points_t
 }
 
 vector<Double_t> findClosestPOA(const calibTrackInfo &calibTrackA, const calibTrackInfo &calibTrackB)
-{
+{ 
   //   (xA,yA,zA)+t(xA_step,yA_step,zA_step)
   Double_t xA = calibTrackA.x0_calib, yA = calibTrackA.y0_calib, zA = calibTrackA.z0_calib;
   Double_t xB = calibTrackB.x0_calib, yB = calibTrackB.y0_calib, zB = calibTrackB.z0_calib;
- 
+
   Double_t xA_step = -1.*sin(calibTrackA.theta_calib)*sin(calibTrackA.phi_calib);
   Double_t yA_step = cos(calibTrackA.theta_calib);
   Double_t zA_step = sin(calibTrackA.theta_calib)*cos(calibTrackA.phi_calib);
-   
+
   Double_t xB_step = -1.*sin(calibTrackB.theta_calib)*sin(calibTrackB.phi_calib);
   Double_t yB_step = cos(calibTrackB.theta_calib);
   Double_t zB_step = sin(calibTrackB.theta_calib)*cos(calibTrackB.phi_calib);
- 
+
   //perpendicular line between the two tracks
   Double_t x_prep = (yA_step*zB_step)-(yB_step*zA_step);
   Double_t y_prep = (xB_step*zA_step)-(xA_step*zB_step);
@@ -543,12 +553,20 @@ vector<Double_t> findDistortedClosestPOA(const calibTrackInfo &calibTrackA, cons
   Double_t x_mid = (min_Ax+min_Bx)/2.;
   Double_t y_mid = (min_Ay+min_By)/2.;
   Double_t z_mid = (min_Az+min_Bz)/2.;
- 
-  return_vector.push_back(min_distance_parabola);
-  return_vector.push_back(x_mid);
-  return_vector.push_back(y_mid);
-  return_vector.push_back(z_mid);
 
+  if(isnan(min_distance_parabola)) {
+    return_vector.push_back(999999.0);
+    return_vector.push_back(999999.0);
+    return_vector.push_back(999999.0);
+    return_vector.push_back(999999.0);    
+  }
+  else {
+    return_vector.push_back(min_distance_parabola);
+    return_vector.push_back(x_mid);
+    return_vector.push_back(y_mid);
+    return_vector.push_back(z_mid);
+  }
+  
   return return_vector;
 }
 
@@ -590,7 +608,7 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
   Int_t nTracks = 0;
   while (reader.Next())
   {
-    if (nTracks >= maxNumTracks) continue;
+    if ((maxNumTracks != -1) && (nTracks >= maxNumTracks)) continue;
     
     if (*nPoints < 3) continue;
     
@@ -622,19 +640,27 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
 
     if (((xS > maxXdist) && (xS < (Lx - maxXdist)) && (yS > maxYdist) && (yS < (Ly - maxYdist)) && (zS > maxZdist) && (zS < (Lz - maxZdist))) || ((xE > maxXdist) && (xE < (Lx - maxXdist)) && (yE > maxYdist) && (yE < (Ly - maxYdist)) && (zE > maxZdist) && (zE < (Lz - maxZdist)))) continue;
 
-    if ((((xS > (Lx - maxXdist)) || (xE > (Lx - maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_anode)) || (((xS < maxXdist) || (xE < maxXdist)) && (*track_MCS < 1000.0*minTrackMCS_cathode))) continue;
+    if ((((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_anode)) continue;
+    if ((((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_cathode)) continue;
+    if ((((xS > (Lx - maxXdist)) && (xE < maxXdist)) || ((xE > (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_crossing)) continue;
 
     nTracks++;
-    
+
+    Double_t x0_offset = 0.0; // Need to correct each track point due to smearing of end points
+    Double_t x1_offset = 0.0; // Need to correct each track point due to smearing of end points    
     if(xS < maxXdist) {
       x0 = 0.0;
       y0 = yS;
       z0 = zS;
+
+      x0_offset = x0-xS;
     }
     else if (xS > (Lx - maxXdist)) {
       x0 = Lx;
       y0 = yS;
       z0 = zS;
+
+      x0_offset = x0-xS;
     }
     else if (min(fabs(yS),fabs(Ly-yS)) < min(fabs(zS),fabs(Lz-zS))) {
       if (fabs(yS) < fabs(Ly-yS)) {
@@ -665,11 +691,15 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
       x1 = 0.0;
       y1 = yE;
       z1 = zE;
+
+      x1_offset = x1-xE;
     }
     else if (xE > (Lx - maxXdist)) {
       x1 = Lx;
       y1 = yE;
       z1 = zE;
+
+      x1_offset = x1-xE;
     }
     else if (min(fabs(yE),fabs(Ly-yE)) < min(fabs(zE),fabs(Lz-zE))) {
       if (fabs(yE) < fabs(Ly-yE)) {
@@ -696,10 +726,17 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
       }
     }
 
+    if((x0_offset == 0.0) || (x1_offset == 0.0)) {
+      x0 += x1_offset;
+      x1 += x0_offset;
+    }
+
     Double_t trackLength = sqrt(pow(x0-x1,2.0)+pow(y0-y1,2.0)+pow(z0-z1,2.0));
     
-    Double_t theta = ArcCos(fabs(y0-y1)/trackLength);
-    Double_t phi = ArcSin(fabs(x0-x1)/(trackLength*Sin(theta)));
+    //Double_t theta = ArcCos((y1-y0)/trackLength);
+    //Double_t phi = ArcSin((x0-x1)/(trackLength*Sin(theta)));
+    Double_t theta = acos((y1-y0)/trackLength);
+    Double_t phi = acos((z1-z0)/(trackLength*sin(theta)));
     if (x1 > x0) {
       phi = -1.0*fabs(phi);
     }
@@ -727,7 +764,21 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
       electron.y = -1.0; // Dummy (currently don't save this info in file)
       electron.z = -1.0; // Dummy (currently don't save this info in file)
       electron.t = -1.0; // Dummy (currently don't save this info in file)
-      electron.x_mod = doCoordTransformX(pointX[j]);
+      if((x0_offset == 0.0) && (x1_offset == 0.0)) {
+        electron.x_mod = doCoordTransformX(pointX[j]);
+      }
+      else if((x0_offset != 0.0) && (x1_offset == 0.0)) {
+        electron.x_mod = doCoordTransformX(pointX[j]) + x0_offset;
+      }
+      else if((x0_offset == 0.0) && (x1_offset != 0.0)) {
+        electron.x_mod = doCoordTransformX(pointX[j]) + x1_offset;
+      }
+      else if(xS < maxXdist) {
+        electron.x_mod = doCoordTransformX(pointX[j]) + ((doCoordTransformX(pointX[j])+x0_offset)/(Lx-x1_offset+x0_offset))*x1_offset + ((Lx-x1_offset-doCoordTransformX(pointX[j]))/(Lx-x1_offset+x0_offset))*x0_offset;
+      }
+      else {
+        electron.x_mod = doCoordTransformX(pointX[j]) + ((doCoordTransformX(pointX[j])+x1_offset)/(Lx-x0_offset+x1_offset))*x0_offset + ((Lx-x0_offset-doCoordTransformX(pointX[j]))/(Lx-x0_offset+x1_offset))*x1_offset;
+      }
       electron.y_mod = doCoordTransformY(pointY[j]);
       electron.z_mod = doCoordTransformZ(pointZ[j]);
       electron.t_mod = -1.0; // Dummy (currently don't save this info in file)
@@ -892,6 +943,12 @@ void doLaserLaserCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t 
       calibTrackB = laserCalibTracks.at(j);
       if(calibTrackB.track.electrons.size() < 3) continue;
 
+      double dTheta = fabs(ArcCos(((calibTrackA.track.x1-calibTrackA.track.x0)*(calibTrackB.track.x1-calibTrackB.track.x0) + (calibTrackA.track.y1-calibTrackA.track.y0)*(calibTrackB.track.y1-calibTrackB.track.y0) + (calibTrackA.track.z1-calibTrackA.track.z0)*(calibTrackB.track.z1-calibTrackB.track.z0))/(sqrt(pow((calibTrackA.track.x1-calibTrackA.track.x0),2.0)+pow((calibTrackA.track.y1-calibTrackA.track.y0),2.0)+pow((calibTrackA.track.z1-calibTrackA.track.z0),2.0))*sqrt(pow((calibTrackB.track.x1-calibTrackB.track.x0),2.0)+pow((calibTrackB.track.y1-calibTrackB.track.y0),2.0)+pow((calibTrackB.track.z1-calibTrackB.track.z0),2.0)))));
+      if (dTheta > 90.0) {
+        dTheta = 180.0 - dTheta;
+      }
+      if(dTheta < relAngleCut*(piVal/180.0)) continue;
+
       POAparams = findClosestPOA(calibTrackA,calibTrackB);
       distVal = POAparams.at(0);
 
@@ -955,7 +1012,9 @@ void doLaserLaserCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t 
 	zCalibFrac = 1.0;
       }
 
-      cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xCalibLowIndex << " " << yCalibLowIndex << " " << zCalibLowIndex << " " << xCalibHighIndex << " " << yCalibHighIndex << " " << zCalibHighIndex << " " << xCalibFrac << " " << yCalibFrac << " " << zCalibFrac << " " << calibTrackA.track.electrons.size() << " " << calibTrackB.track.electrons.size() << endl;
+      //cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xCalibLowIndex << " " << yCalibLowIndex << " " << zCalibLowIndex << " " << xCalibHighIndex << " " << yCalibHighIndex << " " << zCalibHighIndex << " " << xCalibFrac << " " << yCalibFrac << " " << zCalibFrac << " " << calibTrackA.track.electrons.size() << " " << calibTrackB.track.electrons.size() << endl;
+      //cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << dTheta*(180.0/piVal) << " Ax1 " << calibTrackA.track.x1 << " Ax0 " << calibTrackA.track.x0 << " Ay1 " << calibTrackA.track.y1 << " Ay0 " << calibTrackA.track.y0 << " Az1 " << calibTrackA.track.z1 << " Az0 " << calibTrackA.track.z0 <<  " Bx1 " << calibTrackB.track.x1 << " Bx0 " << calibTrackB.track.x0 << " By1 " << calibTrackB.track.y1 << " By0 " << calibTrackB.track.y0 << " Bz1 " << calibTrackB.track.z1 << " Bz0 " << calibTrackB.track.z0 << endl;
+      cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << dTheta*(180.0/piVal) << endl;
 
       tempFactor = distWeight*(1.0-xCalibFrac)*(1.0-yCalibFrac)*(1.0-zCalibFrac);
       calibWeight[xCalibLowIndex][yCalibLowIndex][zCalibLowIndex] += tempFactor;
@@ -1061,6 +1120,12 @@ void doLaserCosmicCalib(const vector<calibTrackInfo> &laserCalibTracks, const ve
       if(calibTrackB.track.electrons.size() < 3) continue;
       if((cosmicTruthMode == 0) && (calibTrackB.calibFlag == false)) continue;
 
+      double dTheta = fabs(ArcCos(((calibTrackA.track.x1-calibTrackA.track.x0)*(calibTrackB.track.x1-calibTrackB.track.x0) + (calibTrackA.track.y1-calibTrackA.track.y0)*(calibTrackB.track.y1-calibTrackB.track.y0) + (calibTrackA.track.z1-calibTrackA.track.z0)*(calibTrackB.track.z1-calibTrackB.track.z0))/(sqrt(pow((calibTrackA.track.x1-calibTrackA.track.x0),2.0)+pow((calibTrackA.track.y1-calibTrackA.track.y0),2.0)+pow((calibTrackA.track.z1-calibTrackA.track.z0),2.0))*sqrt(pow((calibTrackB.track.x1-calibTrackB.track.x0),2.0)+pow((calibTrackB.track.y1-calibTrackB.track.y0),2.0)+pow((calibTrackB.track.z1-calibTrackB.track.z0),2.0)))));
+      if (dTheta > 90.0) {
+        dTheta = 180.0 - dTheta;
+      }
+      if(dTheta < relAngleCut*(piVal/180.0)) continue;
+      
       POAparams = findClosestPOA(calibTrackA,calibTrackB);
       distVal = POAparams.at(0);
 
@@ -1120,7 +1185,9 @@ void doLaserCosmicCalib(const vector<calibTrackInfo> &laserCalibTracks, const ve
 	zCalibFrac = 1.0;
       }
 
-      cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xCalibLowIndex << " " << yCalibLowIndex << " " << zCalibLowIndex << " " << xCalibHighIndex << " " << yCalibHighIndex << " " << zCalibHighIndex << " " << xCalibFrac << " " << yCalibFrac << " " << zCalibFrac << " " << calibTrackA.track.electrons.size() << " " << calibTrackB.track.electrons.size() << endl;
+      //cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xCalibLowIndex << " " << yCalibLowIndex << " " << zCalibLowIndex << " " << xCalibHighIndex << " " << yCalibHighIndex << " " << zCalibHighIndex << " " << xCalibFrac << " " << yCalibFrac << " " << zCalibFrac << " " << calibTrackA.track.electrons.size() << " " << calibTrackB.track.electrons.size() << endl;
+      //cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << dTheta*(180.0/piVal) << " Ax1 " << calibTrackA.track.x1 << " Ax0 " << calibTrackA.track.x0 << " Ay1 " << calibTrackA.track.y1 << " Ay0 " << calibTrackA.track.y0 << " Az1 " << calibTrackA.track.z1 << " Az0 " << calibTrackA.track.z0 <<  " Bx1 " << calibTrackB.track.x1 << " Bx0 " << calibTrackB.track.x0 << " By1 " << calibTrackB.track.y1 << " By0 " << calibTrackB.track.y0 << " Bz1 " << calibTrackB.track.z1 << " Bz0 " << calibTrackB.track.z0 << endl;
+      cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << dTheta*(180.0/piVal) << endl;
 
       xCalibFrac = ((xValDistorted/Lx)*nCalibDivisions_x)-((Double_t) xCalibLowIndex);
       yCalibFrac = ((yValDistorted/Ly)*nCalibDivisions_y)-((Double_t) yCalibLowIndex);
@@ -1230,6 +1297,12 @@ void doCosmicCosmicCalib(const vector<calibTrackInfo> &cosmicCalibTracks, Double
       if(calibTrackB.track.electrons.size() < 3) continue;
       if((cosmicTruthMode == 0) && (calibTrackB.calibFlag == false)) continue;
 
+      double dTheta = fabs(ArcCos(((calibTrackA.track.x1-calibTrackA.track.x0)*(calibTrackB.track.x1-calibTrackB.track.x0) + (calibTrackA.track.y1-calibTrackA.track.y0)*(calibTrackB.track.y1-calibTrackB.track.y0) + (calibTrackA.track.z1-calibTrackA.track.z0)*(calibTrackB.track.z1-calibTrackB.track.z0))/(sqrt(pow((calibTrackA.track.x1-calibTrackA.track.x0),2.0)+pow((calibTrackA.track.y1-calibTrackA.track.y0),2.0)+pow((calibTrackA.track.z1-calibTrackA.track.z0),2.0))*sqrt(pow((calibTrackB.track.x1-calibTrackB.track.x0),2.0)+pow((calibTrackB.track.y1-calibTrackB.track.y0),2.0)+pow((calibTrackB.track.z1-calibTrackB.track.z0),2.0)))));
+      if (dTheta > 90.0) {
+        dTheta = 180.0 - dTheta;
+      }
+      if(dTheta < relAngleCut*(piVal/180.0)) continue;
+      
       POAparams = findClosestPOA(calibTrackA,calibTrackB);
       distVal = POAparams.at(0);
 
@@ -1289,7 +1362,9 @@ void doCosmicCosmicCalib(const vector<calibTrackInfo> &cosmicCalibTracks, Double
 	zCalibFrac = 1.0;
       }
       
-      cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xCalibLowIndex << " " << yCalibLowIndex << " " << zCalibLowIndex << " " << xCalibHighIndex << " " << yCalibHighIndex << " " << zCalibHighIndex << " " << xCalibFrac << " " << yCalibFrac << " " << zCalibFrac << " " << calibTrackA.track.electrons.size() << " " << calibTrackB.track.electrons.size() << endl;
+      //cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xCalibLowIndex << " " << yCalibLowIndex << " " << zCalibLowIndex << " " << xCalibHighIndex << " " << yCalibHighIndex << " " << zCalibHighIndex << " " << xCalibFrac << " " << yCalibFrac << " " << zCalibFrac << " " << calibTrackA.track.electrons.size() << " " << calibTrackB.track.electrons.size() << endl;
+      //cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << dTheta*(180.0/piVal) << " Ax1 " << calibTrackA.track.x1 << " Ax0 " << calibTrackA.track.x0 << " Ay1 " << calibTrackA.track.y1 << " Ay0 " << calibTrackA.track.y0 << " Az1 " << calibTrackA.track.z1 << " Az0 " << calibTrackA.track.z0 <<  " Bx1 " << calibTrackB.track.x1 << " Bx0 " << calibTrackB.track.x0 << " By1 " << calibTrackB.track.y1 << " By0 " << calibTrackB.track.y0 << " Bz1 " << calibTrackB.track.z1 << " Bz0 " << calibTrackB.track.z0 << endl;
+      cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << dTheta*(180.0/piVal) << endl;
 
       xCalibFrac = ((xValDistorted/Lx)*nCalibDivisions_x)-((Double_t) xCalibLowIndex);
       yCalibFrac = ((yValDistorted/Ly)*nCalibDivisions_y)-((Double_t) yCalibLowIndex);
@@ -1731,7 +1806,7 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
   T_calib->Branch("elecFate",&elecFate,"data_calib/I");
   T_calib->SetDirectory(outputFile);
 
-  doLaserLaserCalib(laserCalibTracks,distScale,maxDistFactor);
+  //doLaserLaserCalib(laserCalibTracks,distScale,maxDistFactor);
   if(cosmicTruthMode == 0)
   {
     for(Int_t i = 0; i < numIterations; i++)
@@ -1745,7 +1820,7 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
   else
   {
     //doLaserCosmicCalib(laserCalibTracks,cosmicCalibTracks,distScale,maxDistFactor,cosmicTruthMode);
-    //doCosmicCosmicCalib(cosmicCalibTracks,distScale,maxDistFactor,cosmicTruthMode);
+    doCosmicCosmicCalib(cosmicCalibTracks,distScale,maxDistFactor,cosmicTruthMode);
   }
 
   for(Int_t x = 0; x <= nCalibDivisions_x; x++)
@@ -1802,6 +1877,8 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
 
 void saveTrackInfo(const vector<trackInfo> &tracks)
 {
+  Int_t trackID;
+
   Double_t x0;
   Double_t y0;
   Double_t z0;
@@ -1819,7 +1896,8 @@ void saveTrackInfo(const vector<trackInfo> &tracks)
 
   TTree *T_tracks;
   T_tracks = new TTree("SpaCEtree_tracks","SpaCEtree_tracks");
-  T_tracks->Branch("x0_tracks",&x0,"x0_tracks/D");
+  T_tracks->Branch("trackID_tracks",&trackID,"trackID_tracks/I");
+  T_tracks->Branch("x0_tracks",&x0,"x0_tracks/D");  
   T_tracks->Branch("y0_tracks",&y0,"y0_tracks/D");
   T_tracks->Branch("z0_tracks",&z0,"z0_tracks/D");
   T_tracks->Branch("x1_tracks",&x1,"x1_tracks/D");
@@ -1837,6 +1915,8 @@ void saveTrackInfo(const vector<trackInfo> &tracks)
   Int_t numTracks = tracks.size();
   for(Int_t j = 0; j < numTracks; j++)
   {
+    trackID = j;
+    
     x0 = tracks.at(j).x0;
     y0 = tracks.at(j).y0;
     z0 = tracks.at(j).z0;

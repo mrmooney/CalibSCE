@@ -73,7 +73,7 @@ void makeRecoEvalPlot(Int_t numDispDivisions, Double_t zBin, Int_t logScale, Int
   TColor::CreateGradientColorTable(5,stops,red,green,blue,255);
   gStyle->SetNumberContours(255);
 
-  TFile* fileActual = new TFile("dispOutput_MicroBooNE_E273.root");
+  TFile* fileActual = new TFile("data/dispOutput_MicroBooNE_E273.root");
   TTree* treeActual = (TTree*)fileActual->Get("SpaCEtree_bkwdDisp");
   //TProfile2D* profileActual = new TProfile2D("profileActual","",numDispDivisions_x+1,-1.0*Lx/(2.0*((Double_t) numDispDivisions_x)),Lx+Lx/(2.0*((Double_t) numDispDivisions_x)),numDispDivisions_y+1,-1.0*Ly/(2.0*((Double_t) numDispDivisions_y)),Ly+Ly/(2.0*((Double_t) numDispDivisions_y)));
   TProfile2D* profileActual = new TProfile2D("profileActual","",numDispDivisions_x+1,-Lx/(2.0*((Double_t) numDispDivisions_x)),Lx+Lx/(2.0*((Double_t) numDispDivisions_x)),numDispDivisions_y+1,-1.0*(Ly/2.0)-1.0*Ly/(2.0*((Double_t) numDispDivisions_y)),(Ly/2.0)+Ly/(2.0*((Double_t) numDispDivisions_y)));
@@ -86,21 +86,17 @@ void makeRecoEvalPlot(Int_t numDispDivisions, Double_t zBin, Int_t logScale, Int
   }
   profileActual->SetStats(0);
   
-  //TFile* fileCalib = new TFile("dispOutput_MicroBooNE_calib.root");
-  //TFile* fileCalib = new TFile("dispOutput_MicroBooNE_calib_1cm_3_10000cosmics_withInterp.root");
-  //TFile* fileCalib = new TFile("dispOutput_MicroBooNE_calib_1cm_3_10000cosmics.root");
-  //TFile* fileCalib = new TFile("dispOutput_MicroBooNE_calib_1cm_3_1000cosmics.root");
-  //TFile* fileCalib = new TFile("dispOutput_MicroBooNE_calib_1cm_3_1000cosmics_10iter_withInterp.root");
-  //TFile* fileCalib = new TFile("output_toyMC_isotropic_10000cosmics.root");
-  //TFile* fileCalib = new TFile("output_toyMC_isotropic_10000cosmics_withInterp.root");
-  //TFile* fileCalib = new TFile("output_toyMC_isotropic_10000cosmics_withMCS_withInterp.root");
-  //TFile* fileCalib = new TFile("output_toyMC_laserscan.root");
-  TFile* fileCalib = new TFile("output_toyMC_laserscan_withInterp.root");
-  //TFile* fileCalib = new TFile("output_actualMC_6p0AnodeMCS_2p5CathodeMCS.root");
-  //TFile* fileCalib = new TFile("output.root");
-  //TFile* fileCalib = new TFile("new_output.root");
-  //TFile* fileCalib = new TFile("dispOutput_MicroBooNE_calib_2cm_3.root");
-  //TFile* fileCalib = new TFile("dispOutput_MicroBooNE_calib_2cm_3_lasersOnly.root");
+  //TFile* fileCalib = new TFile("results/output_toyMC_isotropic_10000cosmics.root");
+  //TFile* fileCalib = new TFile("results/output_toyMC_isotropic_10000cosmics_withInterp.root");
+  //TFile* fileCalib = new TFile("results/output_toyMC_isotropic_10000cosmics_withMCS_withInterp.root");
+  //TFile* fileCalib = new TFile("results/output_toyMC_laserscan.root");
+  //TFile* fileCalib = new TFile("results/output_toyMC_laserscan_withInterp.root");
+  //TFile* fileCalib = new TFile("results/output_actualMC_6p0AnodeMCS_2p5CathodeMCS.root");
+  TFile* fileCalib = new TFile("output.root");
+  //TFile* fileCalib = new TFile("results/output.root");
+  //TFile* fileCalib = new TFile("results/new_output.root");
+  //TFile* fileCalib = new TFile("results/dispOutput_MicroBooNE_calib_2cm_3.root");
+  //TFile* fileCalib = new TFile("results/dispOutput_MicroBooNE_calib_2cm_3_lasersOnly.root");
   TTree* treeCalib = (TTree*)fileCalib->Get("SpaCEtree_calib");
   //TProfile2D* profileCalib = new TProfile2D("profileCalib","",numDispDivisions_x+1,-1.0*Lx/(2.0*((Double_t) numDispDivisions_x)),Lx+Lx/(2.0*((Double_t) numDispDivisions_x)),numDispDivisions_y+1,-1.0*Ly/(2.0*((Double_t) numDispDivisions_y)),Ly+Ly/(2.0*((Double_t) numDispDivisions_y)));
   TProfile2D* profileCalib = new TProfile2D("profileCalib","",numDispDivisions_x+1,-Lx/(2.0*((Double_t) numDispDivisions_x)),Lx+Lx/(2.0*((Double_t) numDispDivisions_x)),numDispDivisions_y+1,-1.0*(Ly/2.0)-1.0*Ly/(2.0*((Double_t) numDispDivisions_y)),(Ly/2.0)+Ly/(2.0*((Double_t) numDispDivisions_y)));
