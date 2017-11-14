@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <fstream>
 #include <string>
+#include <vector>
 
 #include <TMath.h>
 #include <TH1.h>
@@ -28,6 +29,8 @@
 #include <TPrincipal.h>
 #include <TTreeReader.h>
 #include <TTreeReaderArray.h>
+#include <TProfile.h>
+#include <TProfile2D.h>
 
 #include "normVec.hpp"
 
@@ -35,12 +38,14 @@ using namespace std;
 
 //const Char_t *inputFileLaser = "data/laserDataSCE.root";
 const Char_t *inputFileLaser = "data/laserDataSCE_NEW.root";
+//const Char_t *inputFileLaser = "data/laserScan_data.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW_withMCS.root";
 //const Char_t *inputFileCosmic = "data/mcsample_small_combined.root";
 //const Char_t *inputFileCosmic = "data/oldMCsample_50000events.root";
 const Char_t *inputFileCosmic = "data/newMCsample_2Mevents.root";
+//const Char_t *inputFileCosmic = "data/first_set_of_EXTBNB_production.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP_withMCS.root";
 TFile* outputFile = new TFile("output.root","RECREATE");
@@ -52,13 +57,17 @@ const Double_t Lz = 10.0;
 //const Double_t Ly = 6.0;
 //const Double_t Lz = 7.2;
 
-const Double_t relAngleCut = 30.0;
+const Bool_t isMC = true;
+
+//const Double_t relAngleCut = 30.0;
+const Double_t relAngleCut = 20.0;
 const Double_t maxXdist = 0.05;
 const Double_t maxYdist = 0.20;
 const Double_t maxZdist = 0.20;
 
-//const Int_t maxNumTracks = -1;
-const Int_t maxNumTracks = 500000;
+//const Int_t maxCosmicTracks = -1;
+//const Int_t maxCosmicTracks = 500000;
+const Int_t maxCosmicTracks = 20000;
 const Double_t minTrackMCS_anode = 6.5;
 const Double_t minTrackMCS_cathode = 3.0;
 const Double_t minTrackMCS_crossing = 2.5;
@@ -76,6 +85,10 @@ Double_t calibWeight[101][101][401];
 Double_t calibDeltaX[101][101][401];
 Double_t calibDeltaY[101][101][401];
 Double_t calibDeltaZ[101][101][401];
+
+Double_t trueDeltaX[101][101][401];
+Double_t trueDeltaY[101][101][401];
+Double_t trueDeltaZ[101][101][401];
 
 struct elecInfo
 {
@@ -138,6 +151,8 @@ void updateCalibTrueTrack(calibTrackInfo &calibTrack);
 void updateAllCalibTrueTracks(vector<calibTrackInfo> &calibTracks, Int_t iterNum);
 void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo> &cosmicTracks, Double_t distScale, Double_t maxDistFactor, Int_t cosmicTruthMode, Int_t numIterations);
 void saveTrackInfo(const vector<trackInfo> &tracks);
+void loadTruthMap();
+Double_t getTruthOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp);
 
 Int_t main(Int_t argc, Char_t** argv)
 {
@@ -147,8 +162,11 @@ Int_t main(Int_t argc, Char_t** argv)
   nCalibDivisions_x = nCalibDivisions;
   nCalibDivisions_y = TMath::Nint((Ly/Lx)*((Double_t)nCalibDivisions));
   nCalibDivisions_z = TMath::Nint((Lz/Lx)*((Double_t)nCalibDivisions));
+
+  loadTruthMap();
   
   vector<trackInfo> laserTracks = getTrackSet(1);
+  //vector<trackInfo> laserTracks = getLArSoftTrackSet(1);
   //vector<trackInfo> cosmicTracks = getTrackSet(2);
   vector<trackInfo> cosmicTracks = getLArSoftTrackSet(2);
 
@@ -172,7 +190,13 @@ Double_t doCoordTransformX(const Double_t inputX)
 {
   Double_t outputX;
 
-  outputX = Lx - (Lx/2.56)*inputX/100.0;
+  //outputX = Lx - (Lx/2.56)*inputX/100.0;
+  if(isMC) {
+    outputX = Lx - (Lx/2.5524)*inputX/100.0;
+  }
+  else {
+    outputX = Lx - (Lx/2.58)*inputX/100.0;
+  }
 
   return outputX;
 }
@@ -181,7 +205,12 @@ Double_t doCoordTransformY(const Double_t inputY)
 {
   Double_t outputY;
 
-  outputY = (Ly/(1.173+1.154))*(inputY+115.4)/100.0;
+  if(isMC) {
+    outputY = (Ly/(1.173+1.154))*(inputY+115.4)/100.0;
+  }
+  else {
+    outputY = (Ly/(1.170+1.151))*(inputY+115.1)/100.0;
+  }
 
   return outputY;
 }
@@ -190,8 +219,13 @@ Double_t doCoordTransformZ(const Double_t inputZ)
 {
   Double_t outputZ;
 
-  outputZ = (Lz/(10.368-0.003))*(inputZ-0.3)/100.0;
-
+  if(isMC) {
+    outputZ = (Lz/(10.368-0.003))*(inputZ-0.3)/100.0;
+  }
+  else {
+    outputZ = (Lz/(10.365+0.007))*(inputZ+0.7)/100.0;
+  }
+  
   return outputZ;
 }
 
@@ -575,222 +609,280 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
   vector<trackInfo> tracks;
 
   TFile* mapFile;
- 
+
   if(inputType == 1)
   {
     mapFile = new TFile(inputFileLaser,"READ");
-   }
+
+    TTreeReader readerLasers("lasers", mapFile);
+    TTreeReader readerTracks("tracks", mapFile);
+
+    TTreeReaderValue<TVector3> track_start(readerLasers, "entry");
+    TTreeReaderValue<TVector3> track_end(readerLasers, "exit");
+    TTreeReaderArray<TVector3> track_points(readerTracks, "track");
+
+    Int_t nTracks = 0;
+    while (readerLasers.Next())
+    {
+      readerTracks.Next();
+    
+      nTracks++;
+    
+      Double_t x0, y0, z0;
+      Double_t x1, y1, z1;
+    
+      if ((*track_start).y() > (*track_end).y()) {
+        x0 = doCoordTransformX((*track_start).x());
+        y0 = doCoordTransformY((*track_start).y());
+        z0 = doCoordTransformZ((*track_start).z());
+    
+        x1 = doCoordTransformX((*track_end).x());
+        y1 = doCoordTransformY((*track_end).y());
+        z1 = doCoordTransformZ((*track_end).z());
+      }
+      else {
+        x0 = doCoordTransformX((*track_end).x());
+        y0 = doCoordTransformY((*track_end).y());
+        z0 = doCoordTransformZ((*track_end).z());
+    
+        x1 = doCoordTransformX((*track_start).x());
+        y1 = doCoordTransformY((*track_start).y());
+        z1 = doCoordTransformZ((*track_start).z());
+      }
+      
+      Double_t trackLength = sqrt(pow(x0-x1,2.0)+pow(y0-y1,2.0)+pow(z0-z1,2.0));
+      
+      Double_t theta = acos((y1-y0)/trackLength);
+      Double_t phi = acos((z1-z0)/(trackLength*sin(theta)));
+      if (x1 > x0) {
+        phi = -1.0*fabs(phi);
+      }
+      else {
+        phi = fabs(phi);
+      }
+    
+      trackInfo track;
+      elecInfo electron;
+    
+      track.energy = 1000000.0;
+      track.pdgID = 22;
+      track.x0 = x0;
+      track.y0 = y0;
+      track.z0 = z0;
+      track.x1 = x1;
+      track.y1 = y1;
+      track.z1 = z1;
+      track.theta = theta;
+      track.phi = phi;
+      track.electrons.clear();
+    
+      for(Int_t j = 0; j < track_points.GetSize(); j++)
+      {
+        if ((j % 10) != 0) continue;
+        
+        electron.x = -1.0; // Dummy (currently don't save this info in file)
+        electron.y = -1.0; // Dummy (currently don't save this info in file)
+        electron.z = -1.0; // Dummy (currently don't save this info in file)
+        electron.t = -1.0; // Dummy (currently don't save this info in file)
+        electron.x_mod = min(max(0.0,doCoordTransformX(track_points[j].x())),Lx);
+        electron.y_mod = min(max(0.0,doCoordTransformY(track_points[j].y())),Ly);
+      	electron.z_mod = min(max(0.0,doCoordTransformZ(track_points[j].z())),Lz);
+        electron.t_mod = -1.0; // Dummy (currently don't save this info in file)
+        electron.fate = 0; // Dummy (currently don't save this info in file)
+
+        track.electrons.push_back(electron);
+      }
+      
+      tracks.push_back(track);
+    }
+
+    return tracks;
+  }
   else if(inputType == 2)
   {
     mapFile = new TFile(inputFileCosmic,"READ");
+
+    TTreeReader reader("SCEtree", mapFile);
+    TTreeReaderValue<Double_t> track_startX(reader, "track_startX");
+    TTreeReaderValue<Double_t> track_startY(reader, "track_startY");
+    TTreeReaderValue<Double_t> track_startZ(reader, "track_startZ");
+    TTreeReaderValue<Double_t> track_endX(reader, "track_endX");
+    TTreeReaderValue<Double_t> track_endY(reader, "track_endY");
+    TTreeReaderValue<Double_t> track_endZ(reader, "track_endZ");
+    TTreeReaderValue<Int_t> nPoints(reader, "track_nPoints");
+    TTreeReaderArray<Double_t> pointX(reader, "track_pointX");
+    TTreeReaderArray<Double_t> pointY(reader, "track_pointY");
+    TTreeReaderArray<Double_t> pointZ(reader, "track_pointZ");
+    TTreeReaderValue<Double_t> track_MCS(reader, "track_MCS_measurement");
+    TTreeReaderValue<Double_t> track_t0(reader, "track_t0");
+    
+    trackInfo track;
+    elecInfo electron;
+    
+    Int_t nTracks = 0;
+    while (reader.Next())
+    {
+      if ((maxCosmicTracks != -1) && (nTracks >= maxCosmicTracks)) continue;
+      
+      if (*nPoints < 3) continue;
+      
+      Double_t xS, yS, zS;
+      Double_t xE, yE, zE;
+      Double_t x0, y0, z0;
+      Double_t x1, y1, z1;
+    
+      Double_t x_offset = 0.002564*(*track_t0); // TEMP OFFSET, CHRIS WILL FIX BUG SOON
+      
+      if (*track_startY > *track_endY) {
+        xS = doCoordTransformX(*track_startX + x_offset);
+        yS = doCoordTransformY(*track_startY);
+        zS = doCoordTransformZ(*track_startZ);
+    
+        xE = doCoordTransformX(*track_endX + x_offset);
+        yE = doCoordTransformY(*track_endY);
+        zE = doCoordTransformZ(*track_endZ);
+      }
+      else {
+        xS = doCoordTransformX(*track_endX + x_offset);
+        yS = doCoordTransformY(*track_endY);
+        zS = doCoordTransformZ(*track_endZ);
+    
+        xE = doCoordTransformX(*track_startX + x_offset);
+        yE = doCoordTransformY(*track_startY);
+        zE = doCoordTransformZ(*track_startZ);
+      }
+    
+      if (((xS < maxXdist) && (xE < maxXdist)) || ((xS > (Lx - maxXdist)) && (xE > (Lx - maxXdist))) || ((xS < maxXdist) && (yS < maxYdist)) || ((xS < maxXdist) && (yS > (Ly - maxYdist))) || ((xS < maxXdist) && (zS < maxZdist)) || ((xS < maxXdist) && (zS > (Lz -maxZdist))) || ((xE < maxXdist) && (yE < maxYdist)) || ((xE < maxXdist) && (yE > (Ly - maxYdist))) || ((xE < maxXdist) && (zE < maxZdist)) || ((xE < maxXdist) && (zE > (Lz -maxZdist))) || ((yS < maxYdist) && (zS < maxZdist)) || ((yS > (Ly - maxYdist)) && (zS < maxZdist)) || ((yS < maxYdist) && (zS > (Lz - maxZdist))) || ((yS > (Ly - maxYdist)) && (zS > (Lz - maxZdist))) || ((yE < maxYdist) && (zE < maxZdist)) || ((yE > (Ly - maxYdist)) && (zE < maxZdist)) || ((yE < maxYdist) && (zE > (Lz - maxZdist))) || ((yE > (Ly - maxYdist)) && (zE > (Lz - maxZdist)))) continue;
+    
+      if (((xS > maxXdist) && (xS < (Lx - maxXdist)) && (yS > maxYdist) && (yS < (Ly - maxYdist)) && (zS > maxZdist) && (zS < (Lz - maxZdist))) || ((xE > maxXdist) && (xE < (Lx - maxXdist)) && (yE > maxYdist) && (yE < (Ly - maxYdist)) && (zE > maxZdist) && (zE < (Lz - maxZdist)))) continue;
+    
+      if ((((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_anode)) continue;
+      if ((((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_cathode)) continue;
+      if ((((xS > (Lx - maxXdist)) && (xE < maxXdist)) || ((xE > (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_crossing)) continue;
+    
+      nTracks++;
+    
+      if(xS < maxXdist) {
+        x0 = 0.0;
+        y0 = yS + getTruthOffset(xS,yS,zS,2);
+        z0 = zS + getTruthOffset(xS,yS,zS,3);
+      }
+      else if (xS > (Lx - maxXdist)) {
+        x0 = Lx;
+        y0 = yS + getTruthOffset(xS,yS,zS,2);
+        z0 = zS + getTruthOffset(xS,yS,zS,3);
+      }
+      else if (min(fabs(yS),fabs(Ly-yS)) < min(fabs(zS),fabs(Lz-zS))) {
+        if (fabs(yS) < fabs(Ly-yS)) {
+          x0 = xS + getTruthOffset(xS,yS,zS,1);
+    	  y0 = 0.0;
+    	  z0 = zS + getTruthOffset(xS,yS,zS,3);
+        }
+        else {
+          x0 = xS + getTruthOffset(xS,yS,zS,1);
+    	  y0 = Ly;
+    	  z0 = zS + getTruthOffset(xS,yS,zS,3);
+        }
+      }
+      else {
+        if (fabs(zS) < fabs(Lz-zS)) {
+          x0 = xS + getTruthOffset(xS,yS,zS,1);
+    	  y0 = yS + getTruthOffset(xS,yS,zS,2);
+    	  z0 = 0.0;
+        }
+        else {
+          x0 = xS + getTruthOffset(xS,yS,zS,1);
+    	  y0 = yS + getTruthOffset(xS,yS,zS,2);
+    	  z0 = Lz;
+        }
+      }
+    
+      if(xE < maxXdist) {
+        x1 = 0.0;
+        y1 = yE + getTruthOffset(xE,yE,zE,2);
+        z1 = zE + getTruthOffset(xE,yE,zE,3);
+      }
+      else if (xE > (Lx - maxXdist)) {
+        x1 = Lx;
+        y1 = yE + getTruthOffset(xE,yE,zE,2);
+        z1 = zE + getTruthOffset(xE,yE,zE,3);
+      }
+      else if (min(fabs(yE),fabs(Ly-yE)) < min(fabs(zE),fabs(Lz-zE))) {
+        if (fabs(yE) < fabs(Ly-yE)) {
+          x1 = xE + getTruthOffset(xE,yE,zE,1);
+    	  y1 = 0.0;
+    	  z1 = zE + getTruthOffset(xE,yE,zE,3);
+        }
+        else {
+          x1 = xE + getTruthOffset(xE,yE,zE,1);
+    	  y1 = Ly;
+    	  z1 = zE + getTruthOffset(xE,yE,zE,3);
+        }
+      }
+      else {
+        if (fabs(zE) < fabs(Lz-zE)) {
+          x1 = xE + getTruthOffset(xE,yE,zE,1);
+    	  y1 = yE + getTruthOffset(xE,yE,zE,2);
+    	  z1 = 0.0;
+        }
+        else {
+          x1 = xE + getTruthOffset(xE,yE,zE,1);
+    	  y1 = yE + getTruthOffset(xE,yE,zE,2);
+    	  z1 = Lz;
+        }
+      }
+    
+      Double_t trackLength = sqrt(pow(x0-x1,2.0)+pow(y0-y1,2.0)+pow(z0-z1,2.0));
+      
+      //Double_t theta = ArcCos((y1-y0)/trackLength);
+      //Double_t phi = ArcSin((x0-x1)/(trackLength*Sin(theta)));
+      Double_t theta = acos((y1-y0)/trackLength);
+      Double_t phi = acos((z1-z0)/(trackLength*sin(theta)));
+      if (x1 > x0) {
+        phi = -1.0*fabs(phi);
+      }
+      else {
+        phi = fabs(phi);
+      }
+      
+      track.energy = *track_MCS/1000.0;
+      track.pdgID = 13;
+      track.x0 = x0;
+      track.y0 = y0;
+      track.z0 = z0;
+      track.x1 = x1;
+      track.y1 = y1;
+      track.z1 = z1;
+      track.theta = theta;
+      track.phi = phi;
+      track.electrons.clear();
+    
+      for(Int_t j = 0; j < *nPoints; j++)
+      {
+        if ((j % 10) != 0) continue;
+        
+        electron.x = -1.0; // Dummy (currently don't save this info in file)
+        electron.y = -1.0; // Dummy (currently don't save this info in file)
+        electron.z = -1.0; // Dummy (currently don't save this info in file)
+        electron.t = -1.0; // Dummy (currently don't save this info in file)
+        electron.x_mod = doCoordTransformX(pointX[j]+x_offset);
+        electron.y_mod = doCoordTransformY(pointY[j]);
+        electron.z_mod = doCoordTransformZ(pointZ[j]);
+        electron.t_mod = -1.0; // Dummy (currently don't save this info in file)
+        electron.fate = 0; // Dummy (currently don't save this info in file)
+    
+        track.electrons.push_back(electron);
+      }
+      
+      tracks.push_back(track);
+    }
+    
+    return tracks;
   }
   else
   {
     return tracks;
   }
-
-  TTreeReader reader("SCEtree", mapFile);
-  TTreeReaderValue<double> track_startX(reader, "track_startX");
-  TTreeReaderValue<Double_t> track_startY(reader, "track_startY");
-  TTreeReaderValue<Double_t> track_startZ(reader, "track_startZ");
-  TTreeReaderValue<Double_t> track_endX(reader, "track_endX");
-  TTreeReaderValue<Double_t> track_endY(reader, "track_endY");
-  TTreeReaderValue<Double_t> track_endZ(reader, "track_endZ");
-  TTreeReaderValue<Int_t> nPoints(reader, "track_nPoints");
-  TTreeReaderArray<Double_t> pointX(reader, "track_pointX");
-  TTreeReaderArray<Double_t> pointY(reader, "track_pointY");
-  TTreeReaderArray<Double_t> pointZ(reader, "track_pointZ");
-  TTreeReaderValue<Double_t> track_MCS(reader, "track_MCS_measurement");
-
-  trackInfo track;
-  elecInfo electron;
-
-  Int_t nTracks = 0;
-  while (reader.Next())
-  {
-    if ((maxNumTracks != -1) && (nTracks >= maxNumTracks)) continue;
-    
-    if (*nPoints < 3) continue;
-    
-    Double_t xS, yS, zS;
-    Double_t xE, yE, zE;
-    Double_t x0, y0, z0;
-    Double_t x1, y1, z1;
-    
-    if (*track_startY > *track_endY) {
-      xS = doCoordTransformX(*track_startX);
-      yS = doCoordTransformY(*track_startY);
-      zS = doCoordTransformZ(*track_startZ);
-
-      xE = doCoordTransformX(*track_endX);
-      yE = doCoordTransformY(*track_endY);
-      zE = doCoordTransformZ(*track_endZ);
-    }
-    else {
-      xS = doCoordTransformX(*track_endX);
-      yS = doCoordTransformY(*track_endY);
-      zS = doCoordTransformZ(*track_endZ);
-
-      xE = doCoordTransformX(*track_startX);
-      yE = doCoordTransformY(*track_startY);
-      zE = doCoordTransformZ(*track_startZ);
-    }
-
-    if (((xS < maxXdist) && (xE < maxXdist)) || ((xS > (Lx - maxXdist)) && (xE > (Lx - maxXdist))) || ((xS < maxXdist) && (yS < maxYdist)) || ((xS < maxXdist) && (yS > (Ly - maxYdist))) || ((xS < maxXdist) && (zS < maxZdist)) || ((xS < maxXdist) && (zS > (Lz -maxZdist))) || ((xE < maxXdist) && (yE < maxYdist)) || ((xE < maxXdist) && (yE > (Ly - maxYdist))) || ((xE < maxXdist) && (zE < maxZdist)) || ((xE < maxXdist) && (zE > (Lz -maxZdist))) || ((yS < maxYdist) && (zS < maxZdist)) || ((yS > (Ly - maxYdist)) && (zS < maxZdist)) || ((yS < maxYdist) && (zS > (Lz - maxZdist))) || ((yS > (Ly - maxYdist)) && (zS > (Lz - maxZdist))) || ((yE < maxYdist) && (zE < maxZdist)) || ((yE > (Ly - maxYdist)) && (zE < maxZdist)) || ((yE < maxYdist) && (zE > (Lz - maxZdist))) || ((yE > (Ly - maxYdist)) && (zE > (Lz - maxZdist)))) continue;
-
-    if (((xS > maxXdist) && (xS < (Lx - maxXdist)) && (yS > maxYdist) && (yS < (Ly - maxYdist)) && (zS > maxZdist) && (zS < (Lz - maxZdist))) || ((xE > maxXdist) && (xE < (Lx - maxXdist)) && (yE > maxYdist) && (yE < (Ly - maxYdist)) && (zE > maxZdist) && (zE < (Lz - maxZdist)))) continue;
-
-    if ((((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_anode)) continue;
-    if ((((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_cathode)) continue;
-    if ((((xS > (Lx - maxXdist)) && (xE < maxXdist)) || ((xE > (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_crossing)) continue;
-
-    nTracks++;
-
-    Double_t x0_offset = 0.0; // Need to correct each track point due to smearing of end points
-    Double_t x1_offset = 0.0; // Need to correct each track point due to smearing of end points    
-    if(xS < maxXdist) {
-      x0 = 0.0;
-      y0 = yS;
-      z0 = zS;
-
-      x0_offset = x0-xS;
-    }
-    else if (xS > (Lx - maxXdist)) {
-      x0 = Lx;
-      y0 = yS;
-      z0 = zS;
-
-      x0_offset = x0-xS;
-    }
-    else if (min(fabs(yS),fabs(Ly-yS)) < min(fabs(zS),fabs(Lz-zS))) {
-      if (fabs(yS) < fabs(Ly-yS)) {
-        x0 = xS;
-	y0 = 0.0;
-	z0 = zS;
-      }
-      else {
-        x0 = xS;
-	y0 = Ly;
-	z0 = zS;
-      }
-    }
-    else {
-      if (fabs(zS) < fabs(Lz-zS)) {
-        x0 = xS;
-	y0 = yS;
-	z0 = 0.0;
-      }
-      else {
-        x0 = xS;
-	y0 = yS;
-	z0 = Lz;
-      }
-    }
-
-    if(xE < maxXdist) {
-      x1 = 0.0;
-      y1 = yE;
-      z1 = zE;
-
-      x1_offset = x1-xE;
-    }
-    else if (xE > (Lx - maxXdist)) {
-      x1 = Lx;
-      y1 = yE;
-      z1 = zE;
-
-      x1_offset = x1-xE;
-    }
-    else if (min(fabs(yE),fabs(Ly-yE)) < min(fabs(zE),fabs(Lz-zE))) {
-      if (fabs(yE) < fabs(Ly-yE)) {
-        x1 = xE;
-	y1 = 0.0;
-	z1 = zE;
-      }
-      else {
-        x1 = xE;
-	y1 = Ly;
-	z1 = zE;
-      }
-    }
-    else {
-      if (fabs(zE) < fabs(Lz-zE)) {
-        x1 = xE;
-	y1 = yE;
-	z1 = 0.0;
-      }
-      else {
-        x1 = xE;
-	y1 = yE;
-	z1 = Lz;
-      }
-    }
-
-    if((x0_offset == 0.0) || (x1_offset == 0.0)) {
-      x0 += x1_offset;
-      x1 += x0_offset;
-    }
-
-    Double_t trackLength = sqrt(pow(x0-x1,2.0)+pow(y0-y1,2.0)+pow(z0-z1,2.0));
-    
-    //Double_t theta = ArcCos((y1-y0)/trackLength);
-    //Double_t phi = ArcSin((x0-x1)/(trackLength*Sin(theta)));
-    Double_t theta = acos((y1-y0)/trackLength);
-    Double_t phi = acos((z1-z0)/(trackLength*sin(theta)));
-    if (x1 > x0) {
-      phi = -1.0*fabs(phi);
-    }
-    else {
-      phi = fabs(phi);
-    }
-    
-    track.energy = *track_MCS/1000.0;
-    track.pdgID = 13;
-    track.x0 = x0;
-    track.y0 = y0;
-    track.z0 = z0;
-    track.x1 = x1;
-    track.y1 = y1;
-    track.z1 = z1;
-    track.theta = theta;
-    track.phi = phi;
-    track.electrons.clear();
-
-    for(Int_t j = 0; j < *nPoints; j++)
-    {
-      if ((j % 10) != 0) continue;
-      
-      electron.x = -1.0; // Dummy (currently don't save this info in file)
-      electron.y = -1.0; // Dummy (currently don't save this info in file)
-      electron.z = -1.0; // Dummy (currently don't save this info in file)
-      electron.t = -1.0; // Dummy (currently don't save this info in file)
-      if((x0_offset == 0.0) && (x1_offset == 0.0)) {
-        electron.x_mod = doCoordTransformX(pointX[j]);
-      }
-      else if((x0_offset != 0.0) && (x1_offset == 0.0)) {
-        electron.x_mod = doCoordTransformX(pointX[j]) + x0_offset;
-      }
-      else if((x0_offset == 0.0) && (x1_offset != 0.0)) {
-        electron.x_mod = doCoordTransformX(pointX[j]) + x1_offset;
-      }
-      else if(xS < maxXdist) {
-        electron.x_mod = doCoordTransformX(pointX[j]) + ((doCoordTransformX(pointX[j])+x0_offset)/(Lx-x1_offset+x0_offset))*x1_offset + ((Lx-x1_offset-doCoordTransformX(pointX[j]))/(Lx-x1_offset+x0_offset))*x0_offset;
-      }
-      else {
-        electron.x_mod = doCoordTransformX(pointX[j]) + ((doCoordTransformX(pointX[j])+x1_offset)/(Lx-x0_offset+x1_offset))*x0_offset + ((Lx-x0_offset-doCoordTransformX(pointX[j]))/(Lx-x0_offset+x1_offset))*x1_offset;
-      }
-      electron.y_mod = doCoordTransformY(pointY[j]);
-      electron.z_mod = doCoordTransformZ(pointZ[j]);
-      electron.t_mod = -1.0; // Dummy (currently don't save this info in file)
-      electron.fate = 0; // Dummy (currently don't save this info in file)
-
-      track.electrons.push_back(electron);
-    }
-    
-    tracks.push_back(track);
-  }
-
-  return tracks;
 }
 
 vector<trackInfo> getTrackSet(Int_t inputType)
@@ -944,8 +1036,8 @@ void doLaserLaserCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t 
       if(calibTrackB.track.electrons.size() < 3) continue;
 
       double dTheta = fabs(ArcCos(((calibTrackA.track.x1-calibTrackA.track.x0)*(calibTrackB.track.x1-calibTrackB.track.x0) + (calibTrackA.track.y1-calibTrackA.track.y0)*(calibTrackB.track.y1-calibTrackB.track.y0) + (calibTrackA.track.z1-calibTrackA.track.z0)*(calibTrackB.track.z1-calibTrackB.track.z0))/(sqrt(pow((calibTrackA.track.x1-calibTrackA.track.x0),2.0)+pow((calibTrackA.track.y1-calibTrackA.track.y0),2.0)+pow((calibTrackA.track.z1-calibTrackA.track.z0),2.0))*sqrt(pow((calibTrackB.track.x1-calibTrackB.track.x0),2.0)+pow((calibTrackB.track.y1-calibTrackB.track.y0),2.0)+pow((calibTrackB.track.z1-calibTrackB.track.z0),2.0)))));
-      if (dTheta > 90.0) {
-        dTheta = 180.0 - dTheta;
+      if (dTheta > piVal/2.0) {
+        dTheta = piVal - dTheta;
       }
       if(dTheta < relAngleCut*(piVal/180.0)) continue;
 
@@ -1121,8 +1213,8 @@ void doLaserCosmicCalib(const vector<calibTrackInfo> &laserCalibTracks, const ve
       if((cosmicTruthMode == 0) && (calibTrackB.calibFlag == false)) continue;
 
       double dTheta = fabs(ArcCos(((calibTrackA.track.x1-calibTrackA.track.x0)*(calibTrackB.track.x1-calibTrackB.track.x0) + (calibTrackA.track.y1-calibTrackA.track.y0)*(calibTrackB.track.y1-calibTrackB.track.y0) + (calibTrackA.track.z1-calibTrackA.track.z0)*(calibTrackB.track.z1-calibTrackB.track.z0))/(sqrt(pow((calibTrackA.track.x1-calibTrackA.track.x0),2.0)+pow((calibTrackA.track.y1-calibTrackA.track.y0),2.0)+pow((calibTrackA.track.z1-calibTrackA.track.z0),2.0))*sqrt(pow((calibTrackB.track.x1-calibTrackB.track.x0),2.0)+pow((calibTrackB.track.y1-calibTrackB.track.y0),2.0)+pow((calibTrackB.track.z1-calibTrackB.track.z0),2.0)))));
-      if (dTheta > 90.0) {
-        dTheta = 180.0 - dTheta;
+      if (dTheta > piVal/2.0) {
+        dTheta = piVal - dTheta;
       }
       if(dTheta < relAngleCut*(piVal/180.0)) continue;
       
@@ -1298,8 +1390,8 @@ void doCosmicCosmicCalib(const vector<calibTrackInfo> &cosmicCalibTracks, Double
       if((cosmicTruthMode == 0) && (calibTrackB.calibFlag == false)) continue;
 
       double dTheta = fabs(ArcCos(((calibTrackA.track.x1-calibTrackA.track.x0)*(calibTrackB.track.x1-calibTrackB.track.x0) + (calibTrackA.track.y1-calibTrackA.track.y0)*(calibTrackB.track.y1-calibTrackB.track.y0) + (calibTrackA.track.z1-calibTrackA.track.z0)*(calibTrackB.track.z1-calibTrackB.track.z0))/(sqrt(pow((calibTrackA.track.x1-calibTrackA.track.x0),2.0)+pow((calibTrackA.track.y1-calibTrackA.track.y0),2.0)+pow((calibTrackA.track.z1-calibTrackA.track.z0),2.0))*sqrt(pow((calibTrackB.track.x1-calibTrackB.track.x0),2.0)+pow((calibTrackB.track.y1-calibTrackB.track.y0),2.0)+pow((calibTrackB.track.z1-calibTrackB.track.z0),2.0)))));
-      if (dTheta > 90.0) {
-        dTheta = 180.0 - dTheta;
+      if (dTheta > piVal/2.0) {
+        dTheta = piVal - dTheta;
       }
       if(dTheta < relAngleCut*(piVal/180.0)) continue;
       
@@ -1943,4 +2035,76 @@ void saveTrackInfo(const vector<trackInfo> &tracks)
   }
 
   return;
+}
+
+void loadTruthMap()
+{
+  TFile* fileTruth = new TFile("data/dispOutput_MicroBooNE_E273.root");
+
+  TTreeReader reader("SpaCEtree_bkwdDisp", fileTruth);
+  TTreeReaderValue<Double_t> reco_x(reader, "x_reco.data_bkwdDisp");
+  TTreeReaderValue<Double_t> reco_y(reader, "y_reco.data_bkwdDisp");
+  TTreeReaderValue<Double_t> reco_z(reader, "z_reco.data_bkwdDisp");
+  TTreeReaderValue<Double_t> Dx(reader, "Dx.data_bkwdDisp");
+  TTreeReaderValue<Double_t> Dy(reader, "Dy.data_bkwdDisp");
+  TTreeReaderValue<Double_t> Dz(reader, "Dz.data_bkwdDisp");  
+
+  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
+  {
+    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
+    {
+      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
+      {
+        trueDeltaX[x][y][z] = 0.0;
+        trueDeltaY[x][y][z] = 0.0;
+        trueDeltaZ[x][y][z] = 0.0;
+      }
+    }
+  }
+
+  while (reader.Next())
+  {
+    trueDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -1.0*(*Dx);
+    trueDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dy;
+    trueDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dz;
+  }
+
+  return;
+}
+
+Double_t getTruthOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp)
+{
+  if (xVal < 0.0) {
+    xVal = 0.0;
+  }
+  if (xVal > Lx) {
+    xVal = Lx;
+  }
+
+  if (yVal < 0.0) {
+    yVal = 0.0;
+  }
+  if (yVal > Ly) {
+    yVal = Ly;
+  }
+
+  if (zVal < 0.0) {
+    zVal = 0.0;
+  }
+  if (zVal > Lz) {
+    zVal = Lz;
+  }
+
+  if (comp == 1) {
+    return trueDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
+  }
+  else if (comp == 2) {
+    return trueDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
+  }
+  else if (comp == 3) {
+    return trueDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
+  }
+  else {
+    return 0.0;
+  }
 }
