@@ -11,6 +11,7 @@
 #include <TH1.h>
 #include <TH2.h>
 #include <TH3.h>
+#include <TF1.h>
 #include <TFile.h>
 #include <TTree.h>
 #include <TCanvas.h>
@@ -31,14 +32,16 @@
 #include <TTreeReaderArray.h>
 #include <TProfile.h>
 #include <TProfile2D.h>
+#include <TRandom3.h>
 
 #include "normVec.hpp"
 
 using namespace std;
 
 //const Char_t *inputFileLaser = "data/laserDataSCE.root";
-const Char_t *inputFileLaser = "data/laserDataSCE_NEW.root";
+//const Char_t *inputFileLaser = "data/laserDataSCE_NEW.root";
 //const Char_t *inputFileLaser = "data/laserScan_data.root";
+const Char_t *inputFileLaser = "data/laserScan_MC.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW_withMCS.root";
@@ -67,10 +70,19 @@ const Double_t maxZdist = 0.20;
 
 //const Int_t maxCosmicTracks = -1;
 //const Int_t maxCosmicTracks = 500000;
-const Int_t maxCosmicTracks = 20000;
-const Double_t minTrackMCS_anode = 6.5;
-const Double_t minTrackMCS_cathode = 3.0;
-const Double_t minTrackMCS_crossing = 2.5;
+const Int_t maxCosmicTracks = 30000;
+//const Double_t minTrackMCS_anode = 6.5; // OLD MC
+//const Double_t minTrackMCS_cathode = 3.0; // OLD MC
+//const Double_t minTrackMCS_crossing = 2.5; // OLD MC
+const Double_t minTrackMCS_anode = 3.3; // NEW MC
+const Double_t minTrackMCS_cathode = 1.7; // NEW MC
+const Double_t minTrackMCS_crossing = 1.4; // NEW MC
+//const Double_t minTrackMCS_anode = 3.0; // OLD DATA
+//const Double_t minTrackMCS_cathode = 2.0; // OLD DATA
+//const Double_t minTrackMCS_crossing = 1.5; // OLD DATA
+//const Double_t minTrackMCS_anode = 1.5; // NEW DATA
+//const Double_t minTrackMCS_cathode = 1.1; // NEW DATA
+//const Double_t minTrackMCS_crossing = 0.0; // NEW DATA
 
 Int_t nCalibDivisions = 25; // MICROBOONE
 //Int_t nCalibDivisions = 18; // PROTODUNE-SP
@@ -165,8 +177,8 @@ Int_t main(Int_t argc, Char_t** argv)
 
   loadTruthMap();
   
-  vector<trackInfo> laserTracks = getTrackSet(1);
-  //vector<trackInfo> laserTracks = getLArSoftTrackSet(1);
+  //vector<trackInfo> laserTracks = getTrackSet(1);
+  vector<trackInfo> laserTracks = getLArSoftTrackSet(1);
   //vector<trackInfo> cosmicTracks = getTrackSet(2);
   vector<trackInfo> cosmicTracks = getLArSoftTrackSet(2);
 
@@ -175,7 +187,8 @@ Int_t main(Int_t argc, Char_t** argv)
   ////doCalibration(laserTracks,cosmicTracks,0.05,3,1,1);
   ////doCalibration(laserTracks,cosmicTracks,0.02,3,1,1);
   //////doCalibration(laserTracks,cosmicTracks,0.01,3,0,2);
-  doCalibration(laserTracks,cosmicTracks,0.01,3,1,1); // Nominal Configuration
+  //doCalibration(laserTracks,cosmicTracks,0.01,3,1,1); // Nominal Configuration
+  //doCalibration(laserTracks,cosmicTracks,0.01,1,1,1); // Nominal Configuration
   
   timer.Stop();
   cout << "Calibration Time:  " << timer.CpuTime() << " sec." << endl;
@@ -386,6 +399,12 @@ vector<Double_t> findClosestPOA(const calibTrackInfo &calibTrackA, const calibTr
   return_vector.push_back(y_mid);
   return_vector.push_back(z_mid);
 
+  ////// NEW 12/5/2017 //////
+  return_vector.push_back(cpa_xB-cpa_xA);
+  return_vector.push_back(cpa_yB-cpa_yA);
+  return_vector.push_back(cpa_zB-cpa_zA);
+  ///////////////////////////
+  
   return return_vector;
 }
 
@@ -600,7 +619,13 @@ vector<Double_t> findDistortedClosestPOA(const calibTrackInfo &calibTrackA, cons
     return_vector.push_back(y_mid);
     return_vector.push_back(z_mid);
   }
-  
+
+  ////// NEW 12/5/2017 //////
+  return_vector.push_back(min_Bx-min_Ax);
+  return_vector.push_back(min_By-min_Ay);
+  return_vector.push_back(min_Bz-min_Az);
+  ///////////////////////////
+
   return return_vector;
 }
 
@@ -718,7 +743,33 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
     
     trackInfo track;
     elecInfo electron;
+
+    TH1F *Zhist_1s = new TH1F("Zhist_1s","",50,0.0,10.0);
+    TH1F *Zhist_2s = new TH1F("Zhist_2s","",50,0.0,10.0);
+    TH1F *Zhist_3s = new TH1F("Zhist_3s","",50,0.0,10.0);
+    TH1F *Zhist_4s = new TH1F("Zhist_4s","",50,0.0,10.0);
+    TH1F *Zhist_5s = new TH1F("Zhist_5s","",50,0.0,10.0);
+    TH1F *Zhist_6s = new TH1F("Zhist_6s","",50,0.0,10.0);
+    TH1F *Zhist_7s = new TH1F("Zhist_7s","",50,0.0,10.0);
+
+    TH1F *Zhist_1e = new TH1F("Zhist_1e","",50,0.0,10.0);
+    TH1F *Zhist_2e = new TH1F("Zhist_2e","",50,0.0,10.0);
+    TH1F *Zhist_3e = new TH1F("Zhist_3e","",50,0.0,10.0);
+    TH1F *Zhist_4e = new TH1F("Zhist_4e","",50,0.0,10.0);
+    TH1F *Zhist_5e = new TH1F("Zhist_5e","",50,0.0,10.0);
+    TH1F *Zhist_6e = new TH1F("Zhist_6e","",50,0.0,10.0);
+    TH1F *Zhist_7e = new TH1F("Zhist_7e","",50,0.0,10.0);
+
+    TF1 *weightFunc;
+    if (isMC == true) {
+      weightFunc = new TF1("weightFunc","(1.0/75.0)*(x-5.0)^2 + (2.0/3.0)",0.0,10.0);
+    }
+    else {
+      weightFunc = new TF1("weightFunc","(2.0/75.0)*(x-5.0)^2 + (1.0/3.0)",0.0,10.0);
+    }
     
+    TRandom3 *rand = new TRandom3(0);
+      
     Int_t nTracks = 0;
     while (reader.Next())
     {
@@ -751,15 +802,41 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
         yE = doCoordTransformY(*track_startY);
         zE = doCoordTransformZ(*track_startZ);
       }
-    
+
+      Zhist_1s->Fill(zS);
+      Zhist_1e->Fill(zE);
+      
       if (((xS < maxXdist) && (xE < maxXdist)) || ((xS > (Lx - maxXdist)) && (xE > (Lx - maxXdist))) || ((xS < maxXdist) && (yS < maxYdist)) || ((xS < maxXdist) && (yS > (Ly - maxYdist))) || ((xS < maxXdist) && (zS < maxZdist)) || ((xS < maxXdist) && (zS > (Lz -maxZdist))) || ((xE < maxXdist) && (yE < maxYdist)) || ((xE < maxXdist) && (yE > (Ly - maxYdist))) || ((xE < maxXdist) && (zE < maxZdist)) || ((xE < maxXdist) && (zE > (Lz -maxZdist))) || ((yS < maxYdist) && (zS < maxZdist)) || ((yS > (Ly - maxYdist)) && (zS < maxZdist)) || ((yS < maxYdist) && (zS > (Lz - maxZdist))) || ((yS > (Ly - maxYdist)) && (zS > (Lz - maxZdist))) || ((yE < maxYdist) && (zE < maxZdist)) || ((yE > (Ly - maxYdist)) && (zE < maxZdist)) || ((yE < maxYdist) && (zE > (Lz - maxZdist))) || ((yE > (Ly - maxYdist)) && (zE > (Lz - maxZdist)))) continue;
-    
+
+      Zhist_2s->Fill(zS);
+      Zhist_2e->Fill(zE);
+      
       if (((xS > maxXdist) && (xS < (Lx - maxXdist)) && (yS > maxYdist) && (yS < (Ly - maxYdist)) && (zS > maxZdist) && (zS < (Lz - maxZdist))) || ((xE > maxXdist) && (xE < (Lx - maxXdist)) && (yE > maxYdist) && (yE < (Ly - maxYdist)) && (zE > maxZdist) && (zE < (Lz - maxZdist)))) continue;
+
+      Zhist_3s->Fill(zS);
+      Zhist_3e->Fill(zE);
     
       if ((((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_anode)) continue;
+
+      Zhist_4s->Fill(zS);
+      Zhist_4e->Fill(zE);
+      
       if ((((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_cathode)) continue;
+
+      Zhist_5s->Fill(zS);
+      Zhist_5e->Fill(zE);
+
       if ((((xS > (Lx - maxXdist)) && (xE < maxXdist)) || ((xE > (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_crossing)) continue;
-    
+
+      Zhist_6s->Fill(zS);
+      Zhist_6e->Fill(zE);
+
+      double randNum = rand->Uniform(1.0);
+      if (randNum > max(weightFunc->Eval(zS),weightFunc->Eval(zE))) continue;
+
+      Zhist_7s->Fill(zS);
+      Zhist_7e->Fill(zE);
+
       nTracks++;
     
       if(xS < maxXdist) {
@@ -876,7 +953,25 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
       
       tracks.push_back(track);
     }
+
+    outputFile->cd();
     
+    Zhist_1s->Write();
+    Zhist_2s->Write();
+    Zhist_3s->Write();
+    Zhist_4s->Write();
+    Zhist_5s->Write();
+    Zhist_6s->Write();
+    Zhist_7s->Write();
+
+    Zhist_1e->Write();
+    Zhist_2e->Write();
+    Zhist_3e->Write();
+    Zhist_4e->Write();
+    Zhist_5e->Write();
+    Zhist_6e->Write();
+    Zhist_7e->Write();
+
     return tracks;
   }
   else
@@ -1023,6 +1118,38 @@ void doLaserLaserCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t 
   Double_t zCalibFrac;
   Double_t tempFactor;
 
+  Double_t crossDistX;
+  Double_t crossDistY;
+  Double_t crossDistZ;
+  Double_t crossDistX_mod;
+  Double_t crossDistY_mod;
+  Double_t crossDistZ_mod;
+  
+  Int_t trackNum1;
+  Int_t trackNum2;
+  Int_t crossType = 1;
+  
+  TTree *T_crossings = new TTree("SpaCEtree_crossings","SpaCEtree_crossings");
+  T_crossings->Branch("trackNum1",&trackNum1,"data_crossings/I");
+  T_crossings->Branch("trackNum2",&trackNum2,"data_crossings/I");  
+  T_crossings->Branch("crossX",&xVal,"data_crossings/D");
+  T_crossings->Branch("crossY",&yVal,"data_crossings/D");
+  T_crossings->Branch("crossZ",&zVal,"data_crossings/D");
+  T_crossings->Branch("crossDist",&distVal,"data_crossings/D");
+  T_crossings->Branch("crossDistX",&crossDistX,"data_crossings/D");
+  T_crossings->Branch("crossDistY",&crossDistY,"data_crossings/D");
+  T_crossings->Branch("crossDistZ",&crossDistZ,"data_crossings/D");
+  T_crossings->Branch("crossX_mod",&xValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossY_mod",&yValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossZ_mod",&zValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossDist_mod",&distValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossDistX_mod",&crossDistX_mod,"data_crossings/D");
+  T_crossings->Branch("crossDistY_mod",&crossDistY_mod,"data_crossings/D");
+  T_crossings->Branch("crossDistZ_mod",&crossDistZ_mod,"data_crossings/D");
+  T_crossings->Branch("distWeight",&distWeight,"data_crossings/D");
+  T_crossings->Branch("crossType",&crossType,"data_crossings/I");
+  T_crossings->SetDirectory(outputFile);
+
   for(Int_t i = 0; i < numLaserTracks; i++)
   {
     cout << "LASER-LASER " << i << endl;
@@ -1045,11 +1172,13 @@ void doLaserLaserCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t 
       distVal = POAparams.at(0);
 
       if((distVal < 0.0) || (distVal > maxDistFactor*distScale)) continue;
-
+      //if((distVal < 0.0) || (distVal > 0.4)) continue;
+      
       POAparamsDistorted = findDistortedClosestPOA(calibTrackA,calibTrackB);
       distValDistorted = POAparamsDistorted.at(0);
 
-      if(distValDistorted > 3.0*distVal) continue;
+      if(distValDistorted > 3.0*distVal+0.005) continue;
+      //if(distValDistorted > 0.4) continue;
 
       distWeight = exp(-1.0*(distVal/distScale));
       
@@ -1059,6 +1188,17 @@ void doLaserLaserCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t 
       xValDistorted = POAparamsDistorted.at(1);
       yValDistorted = POAparamsDistorted.at(2);
       zValDistorted = POAparamsDistorted.at(3);
+
+      crossDistX = POAparams.at(4);
+      crossDistY = POAparams.at(5);
+      crossDistZ = POAparams.at(6);      
+      crossDistX_mod = POAparamsDistorted.at(4);
+      crossDistY_mod = POAparamsDistorted.at(5);
+      crossDistZ_mod = POAparamsDistorted.at(6);      
+      
+      trackNum1 = i;
+      trackNum2 = j;
+      T_crossings->Fill();
 
       xCalibLowIndex = TMath::Floor((xValDistorted/Lx)*nCalibDivisions_x);
       xCalibHighIndex = TMath::Ceil((xValDistorted/Lx)*nCalibDivisions_x);
@@ -1199,6 +1339,38 @@ void doLaserCosmicCalib(const vector<calibTrackInfo> &laserCalibTracks, const ve
   Double_t zCalibFrac;
   Double_t tempFactor;
 
+  Double_t crossDistX;
+  Double_t crossDistY;
+  Double_t crossDistZ;
+  Double_t crossDistX_mod;
+  Double_t crossDistY_mod;
+  Double_t crossDistZ_mod;
+  
+  Int_t trackNum1;
+  Int_t trackNum2;
+  Int_t crossType = 2;
+  
+  TTree *T_crossings = new TTree("SpaCEtree_crossings","SpaCEtree_crossings");
+  T_crossings->Branch("trackNum1",&trackNum1,"data_crossings/I");
+  T_crossings->Branch("trackNum2",&trackNum2,"data_crossings/I");  
+  T_crossings->Branch("crossX",&xVal,"data_crossings/D");
+  T_crossings->Branch("crossY",&yVal,"data_crossings/D");
+  T_crossings->Branch("crossZ",&zVal,"data_crossings/D");
+  T_crossings->Branch("crossDist",&distVal,"data_crossings/D");
+  T_crossings->Branch("crossDistX",&crossDistX,"data_crossings/D");
+  T_crossings->Branch("crossDistY",&crossDistY,"data_crossings/D");
+  T_crossings->Branch("crossDistZ",&crossDistZ,"data_crossings/D");
+  T_crossings->Branch("crossX_mod",&xValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossY_mod",&yValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossZ_mod",&zValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossDist_mod",&distValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossDistX_mod",&crossDistX_mod,"data_crossings/D");
+  T_crossings->Branch("crossDistY_mod",&crossDistY_mod,"data_crossings/D");
+  T_crossings->Branch("crossDistZ_mod",&crossDistZ_mod,"data_crossings/D");
+  T_crossings->Branch("distWeight",&distWeight,"data_crossings/D");
+  T_crossings->Branch("crossType",&crossType,"data_crossings/I");
+  T_crossings->SetDirectory(outputFile);
+
   for(Int_t i = 0; i < numLaserTracks; i++)
   {
     cout << "LASER-COSMIC " << i << endl;
@@ -1226,7 +1398,7 @@ void doLaserCosmicCalib(const vector<calibTrackInfo> &laserCalibTracks, const ve
       POAparamsDistorted = findDistortedClosestPOA(calibTrackA,calibTrackB);
       distValDistorted = POAparamsDistorted.at(0);
 
-      if(distValDistorted > 3.0*distVal) continue;
+      if(distValDistorted > 3.0*distVal+0.005) continue;
 
       distWeight = exp(-1.0*(distVal/distScale));
       
@@ -1236,6 +1408,17 @@ void doLaserCosmicCalib(const vector<calibTrackInfo> &laserCalibTracks, const ve
       xValDistorted = POAparamsDistorted.at(1);
       yValDistorted = POAparamsDistorted.at(2);
       zValDistorted = POAparamsDistorted.at(3);
+
+      crossDistX = POAparams.at(4);
+      crossDistY = POAparams.at(5);
+      crossDistZ = POAparams.at(6);      
+      crossDistX_mod = POAparamsDistorted.at(4);
+      crossDistY_mod = POAparamsDistorted.at(5);
+      crossDistZ_mod = POAparamsDistorted.at(6);      
+
+      trackNum1 = i;
+      trackNum2 = j;
+      T_crossings->Fill();
 
       xCalibLowIndex = TMath::Floor((xValDistorted/Lx)*nCalibDivisions_x);
       xCalibHighIndex = TMath::Ceil((xValDistorted/Lx)*nCalibDivisions_x);
@@ -1375,6 +1558,38 @@ void doCosmicCosmicCalib(const vector<calibTrackInfo> &cosmicCalibTracks, Double
   Double_t zCalibFrac;
   Double_t tempFactor;
 
+  Double_t crossDistX;
+  Double_t crossDistY;
+  Double_t crossDistZ;
+  Double_t crossDistX_mod;
+  Double_t crossDistY_mod;
+  Double_t crossDistZ_mod;
+  
+  Int_t trackNum1;
+  Int_t trackNum2;
+  Int_t crossType = 3;
+  
+  TTree *T_crossings = new TTree("SpaCEtree_crossings","SpaCEtree_crossings");
+  T_crossings->Branch("trackNum1",&trackNum1,"data_crossings/I");
+  T_crossings->Branch("trackNum2",&trackNum2,"data_crossings/I");  
+  T_crossings->Branch("crossX",&xVal,"data_crossings/D");
+  T_crossings->Branch("crossY",&yVal,"data_crossings/D");
+  T_crossings->Branch("crossZ",&zVal,"data_crossings/D");
+  T_crossings->Branch("crossDist",&distVal,"data_crossings/D");
+  T_crossings->Branch("crossDistX",&crossDistX,"data_crossings/D");
+  T_crossings->Branch("crossDistY",&crossDistY,"data_crossings/D");
+  T_crossings->Branch("crossDistZ",&crossDistZ,"data_crossings/D");
+  T_crossings->Branch("crossX_mod",&xValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossY_mod",&yValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossZ_mod",&zValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossDist_mod",&distValDistorted,"data_crossings/D");
+  T_crossings->Branch("crossDistX_mod",&crossDistX_mod,"data_crossings/D");
+  T_crossings->Branch("crossDistY_mod",&crossDistY_mod,"data_crossings/D");
+  T_crossings->Branch("crossDistZ_mod",&crossDistZ_mod,"data_crossings/D");
+  T_crossings->Branch("distWeight",&distWeight,"data_crossings/D");
+  T_crossings->Branch("crossType",&crossType,"data_crossings/I");
+  T_crossings->SetDirectory(outputFile);
+
   for(Int_t i = 0; i < numCosmicTracks; i++)
   {
     cout << "COSMIC-COSMIC " << i << endl;
@@ -1399,12 +1614,14 @@ void doCosmicCosmicCalib(const vector<calibTrackInfo> &cosmicCalibTracks, Double
       distVal = POAparams.at(0);
 
       if((distVal < 0.0) || (distVal > maxDistFactor*distScale)) continue;
-
+      //if((distVal < 0.0) || (distVal > 0.1)) continue;
+      
       POAparamsDistorted = findDistortedClosestPOA(calibTrackA,calibTrackB);
       distValDistorted = POAparamsDistorted.at(0);
 
-      if(distValDistorted > 3.0*distVal) continue;
-
+      if(distValDistorted > 3.0*distVal+0.005) continue;
+      //if(distValDistorted > 0.1) continue;
+      
       distWeight = exp(-1.0*(distVal/distScale));
       
       xVal = POAparams.at(1);
@@ -1413,6 +1630,17 @@ void doCosmicCosmicCalib(const vector<calibTrackInfo> &cosmicCalibTracks, Double
       xValDistorted = POAparamsDistorted.at(1);
       yValDistorted = POAparamsDistorted.at(2);
       zValDistorted = POAparamsDistorted.at(3);
+
+      crossDistX = POAparams.at(4);
+      crossDistY = POAparams.at(5);
+      crossDistZ = POAparams.at(6);      
+      crossDistX_mod = POAparamsDistorted.at(4);
+      crossDistY_mod = POAparamsDistorted.at(5);
+      crossDistZ_mod = POAparamsDistorted.at(6);      
+
+      trackNum1 = i;
+      trackNum2 = j;
+      T_crossings->Fill();
 
       xCalibLowIndex = TMath::Floor((xValDistorted/Lx)*nCalibDivisions_x);
       xCalibHighIndex = TMath::Ceil((xValDistorted/Lx)*nCalibDivisions_x);
@@ -2047,7 +2275,8 @@ void loadTruthMap()
   TTreeReaderValue<Double_t> reco_z(reader, "z_reco.data_bkwdDisp");
   TTreeReaderValue<Double_t> Dx(reader, "Dx.data_bkwdDisp");
   TTreeReaderValue<Double_t> Dy(reader, "Dy.data_bkwdDisp");
-  TTreeReaderValue<Double_t> Dz(reader, "Dz.data_bkwdDisp");  
+  TTreeReaderValue<Double_t> Dz(reader, "Dz.data_bkwdDisp");
+  TTreeReaderValue<Int_t> elecFate(reader, "elecFate.data_bkwdDisp");
 
   for(Int_t x = 0; x <= nCalibDivisions_x; x++)
   {
@@ -2064,9 +2293,115 @@ void loadTruthMap()
 
   while (reader.Next())
   {
-    trueDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -1.0*(*Dx);
-    trueDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dy;
-    trueDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dz;
+    if (*elecFate == 1) {
+      trueDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dx;
+      trueDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dy;
+      trueDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dz;
+    }
+    else {
+      trueDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -999;
+      trueDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -999;
+      trueDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -999;
+    }
+  }
+
+  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
+  {
+    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
+    {
+      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
+      {
+        if (trueDeltaX[x][y][z] == -999) {
+          if (y == nCalibDivisions_y-1) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][nCalibDivisions_y-2][z];
+            trueDeltaY[x][y][z] = trueDeltaY[x][nCalibDivisions_y-2][z];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][nCalibDivisions_y-2][z];
+          }
+          else if (y == 1) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][2][z];
+            trueDeltaY[x][y][z] = trueDeltaY[x][2][z];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][2][z];
+          }
+          else if (z == nCalibDivisions_z-1) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][y][nCalibDivisions_z-2];
+            trueDeltaY[x][y][z] = trueDeltaY[x][y][nCalibDivisions_z-2];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][y][nCalibDivisions_z-2];
+          }
+          else if (z == 1) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][y][2];
+            trueDeltaY[x][y][z] = trueDeltaY[x][y][2];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][y][2];
+          }
+	}
+      }
+    }
+  }
+
+  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
+  {
+    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
+    {
+      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
+      {
+        if (trueDeltaX[x][y][z] == -999) {
+          if ((y == nCalibDivisions_y) && (z == 0)) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][nCalibDivisions_y-1][1];
+            trueDeltaY[x][y][z] = trueDeltaY[x][nCalibDivisions_y-1][1];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][nCalibDivisions_y-1][1];
+          }
+          else if ((y == nCalibDivisions_y) && (z == nCalibDivisions_z)) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
+            trueDeltaY[x][y][z] = trueDeltaY[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
+          }
+          else if ((y == 0) && (z == 0)) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][1][1];
+            trueDeltaY[x][y][z] = trueDeltaY[x][1][1];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][1][1];
+          }
+          else if ((y == 0) && (z == nCalibDivisions_z)) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][1][nCalibDivisions_z-1];
+            trueDeltaY[x][y][z] = trueDeltaY[x][1][nCalibDivisions_z-1];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][1][nCalibDivisions_z-1];
+          }
+	}
+      }
+    }
+  }
+
+  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
+  {
+    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
+    {
+      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
+      {
+        if (trueDeltaX[x][y][z] == -999) {
+          if (y == nCalibDivisions_y) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][nCalibDivisions_y-1][z];
+            trueDeltaY[x][y][z] = trueDeltaY[x][nCalibDivisions_y-1][z];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][nCalibDivisions_y-1][z];
+          }
+          else if (y == 0) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][1][z];
+            trueDeltaY[x][y][z] = trueDeltaY[x][1][z];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][1][z];
+          }
+          else if (z == nCalibDivisions_z) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][y][nCalibDivisions_z-1];
+            trueDeltaY[x][y][z] = trueDeltaY[x][y][nCalibDivisions_z-1];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][y][nCalibDivisions_z-1];
+          }
+          else if (z == 0) {
+            trueDeltaX[x][y][z] = trueDeltaX[x][y][1];
+            trueDeltaY[x][y][z] = trueDeltaY[x][y][1];
+            trueDeltaZ[x][y][z] = trueDeltaZ[x][y][1];
+          }
+	  else {
+            cout << "WE GOT A HUGE PROBLEM HERE:  " << x << " " << y << " " << z << endl;
+	  }
+	}
+      }
+    }
   }
 
   return;
@@ -2074,6 +2409,8 @@ void loadTruthMap()
 
 Double_t getTruthOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp)
 {
+  Double_t offset = 0.0;
+  
   if (xVal < 0.0) {
     xVal = 0.0;
   }
@@ -2096,15 +2433,18 @@ Double_t getTruthOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp)
   }
 
   if (comp == 1) {
-    return trueDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
+    offset = trueDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
   }
   else if (comp == 2) {
-    return trueDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
+    offset = trueDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
   }
   else if (comp == 3) {
-    return trueDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
+    offset = trueDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
   }
-  else {
-    return 0.0;
+  
+  if ((comp == 1) && (offset < 0.0)) {
+    offset = 0.0;
   }
+
+  return offset;
 }
