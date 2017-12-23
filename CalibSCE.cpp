@@ -70,6 +70,9 @@ const Double_t maxXdist = 0.05;
 const Double_t maxYdist = 0.20;
 const Double_t maxZdist = 0.20;
 
+Int_t minInputTrackNum = 0;
+Int_t maxInputTrackNum = 1000000000;
+
 //const Int_t maxCosmicTracks = -1;
 const Int_t maxCosmicTracks = 100000;
 //const Int_t maxCosmicTracks = 30000;
@@ -166,6 +169,11 @@ Int_t main(Int_t argc, Char_t** argv)
 {
   TStopwatch timer;
   timer.Start();
+
+  if(argc > 1) {
+    minInputTrackNum = atoi(argv[1]);
+    maxInputTrackNum = atoi(argv[2]);
+  }
   
   nCalibDivisions_x = nCalibDivisions;
   nCalibDivisions_y = TMath::Nint((Ly/Lx)*((Double_t)nCalibDivisions));
@@ -765,9 +773,13 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
     
     TRandom3 *rand = new TRandom3(0);
       
+    Int_t inputTrackNum = -1;
     Int_t nTracks = 0;
     while (reader.Next())
     {
+      inputTrackNum++;
+      if ((inputTrackNum < minInputTrackNum) || (inputTrackNum > maxInputTrackNum)) continue;
+      
       if ((maxCosmicTracks != -1) && (nTracks >= maxCosmicTracks)) continue;
       
       if (*nPoints < 3) continue;
@@ -2392,9 +2404,6 @@ void loadTruthMap()
             trueDeltaY[x][y][z] = trueDeltaY[x][y][1];
             trueDeltaZ[x][y][z] = trueDeltaZ[x][y][1];
           }
-	  else {
-            cout << "WE GOT A HUGE PROBLEM HERE:  " << x << " " << y << " " << z << endl;
-	  }
 	}
       }
     }
