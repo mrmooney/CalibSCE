@@ -39,18 +39,21 @@
 using namespace std;
 
 //const Char_t *inputFileLaser = "data/laserDataSCE.root";
-//const Char_t *inputFileLaser = "data/laserDataSCE_NEW.root";
+const Char_t *inputFileLaser = "data/laserDataSCE_NEW.root";
 //const Char_t *inputFileLaser = "data/laserScan_data.root";
-const Char_t *inputFileLaser = "data/laserScan_MC.root";
+//const Char_t *inputFileLaser = "data/laserScan_MC.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW_withMCS.root";
 //const Char_t *inputFileCosmic = "data/mcsample_small_combined.root";
 //const Char_t *inputFileCosmic = "data/oldMCsample_50000events.root";
-const Char_t *inputFileCosmic = "data/newMCsample_2Mevents.root";
+//const Char_t *inputFileCosmic = "data/newMCsample_2Mevents.root";
+const Char_t *inputFileCosmic = "data/MC_Cosmics.root";
+//const Char_t *inputFileCosmic = "data/Data_Run1_EXTBNB.root";
 //const Char_t *inputFileCosmic = "data/first_set_of_EXTBNB_production.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP_withMCS.root";
+
 TFile* outputFile = new TFile("output.root","RECREATE");
 
 const Double_t Lx = 2.5;
@@ -62,24 +65,17 @@ const Double_t Lz = 10.0;
 
 const Bool_t isMC = true;
 
-//const Double_t relAngleCut = 30.0;
 const Double_t relAngleCut = 20.0;
 const Double_t maxXdist = 0.05;
 const Double_t maxYdist = 0.20;
 const Double_t maxZdist = 0.20;
 
 //const Int_t maxCosmicTracks = -1;
-//const Int_t maxCosmicTracks = 500000;
-const Int_t maxCosmicTracks = 30000;
-//const Double_t minTrackMCS_anode = 6.5; // OLD MC
-//const Double_t minTrackMCS_cathode = 3.0; // OLD MC
-//const Double_t minTrackMCS_crossing = 2.5; // OLD MC
+const Int_t maxCosmicTracks = 100000;
+//const Int_t maxCosmicTracks = 30000;
 const Double_t minTrackMCS_anode = 3.3; // NEW MC
 const Double_t minTrackMCS_cathode = 1.7; // NEW MC
 const Double_t minTrackMCS_crossing = 1.4; // NEW MC
-//const Double_t minTrackMCS_anode = 3.0; // OLD DATA
-//const Double_t minTrackMCS_cathode = 2.0; // OLD DATA
-//const Double_t minTrackMCS_crossing = 1.5; // OLD DATA
 //const Double_t minTrackMCS_anode = 1.5; // NEW DATA
 //const Double_t minTrackMCS_cathode = 1.1; // NEW DATA
 //const Double_t minTrackMCS_crossing = 0.0; // NEW DATA
@@ -187,8 +183,7 @@ Int_t main(Int_t argc, Char_t** argv)
   ////doCalibration(laserTracks,cosmicTracks,0.05,3,1,1);
   ////doCalibration(laserTracks,cosmicTracks,0.02,3,1,1);
   //////doCalibration(laserTracks,cosmicTracks,0.01,3,0,2);
-  //doCalibration(laserTracks,cosmicTracks,0.01,3,1,1); // Nominal Configuration
-  //doCalibration(laserTracks,cosmicTracks,0.01,1,1,1); // Nominal Configuration
+  doCalibration(laserTracks,cosmicTracks,0.01,3,1,1); // Nominal Configuration
   
   timer.Stop();
   cout << "Calibration Time:  " << timer.CpuTime() << " sec." << endl;
@@ -782,7 +777,8 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
       Double_t x0, y0, z0;
       Double_t x1, y1, z1;
     
-      Double_t x_offset = 0.002564*(*track_t0); // TEMP OFFSET, CHRIS WILL FIX BUG SOON
+      //Double_t x_offset = 0.002564*(*track_t0); // TEMP OFFSET, CHRIS WILL FIX BUG SOON
+      Double_t x_offset = 0.0;
       
       if (*track_startY > *track_endY) {
         xS = doCoordTransformX(*track_startX + x_offset);
