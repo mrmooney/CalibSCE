@@ -50,8 +50,8 @@ const Char_t *inputFileLaser = "data/laserDataSCE_NEW.root";
 //const Char_t *inputFileCosmic = "data/mcsample_small_combined.root";
 //const Char_t *inputFileCosmic = "data/oldMCsample_50000events.root";
 //const Char_t *inputFileCosmic = "data/newMCsample_2Mevents.root";
-//const Char_t *inputFileCosmic = "data/MC_Cosmics.root";
-const Char_t *inputFileCosmic = "data/Data_Run1_EXTBNB.root";
+const Char_t *inputFileCosmic = "data/MC_Cosmics.root";
+//const Char_t *inputFileCosmic = "data/Data_Run1_EXTBNB.root";
 //const Char_t *inputFileCosmic = "data/first_set_of_EXTBNB_production.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP_withMCS.root";
@@ -65,8 +65,8 @@ const Double_t Lz = 10.0;
 //const Double_t Ly = 6.0;
 //const Double_t Lz = 7.2;
 
-const Bool_t isMC = false;
-const Bool_t doBulk = false;
+const Bool_t isMC = true;
+const Bool_t doBulk = true;
 
 const Double_t relAngleCut = 20.0;
 const Double_t maxXdist = 0.05;
@@ -78,9 +78,9 @@ Int_t minInputTrackNum = 0;
 Int_t maxInputTrackNum = 1150000;
 
 //const Int_t maxCosmicTracks = -1;
-const Int_t maxCosmicTracks = 10000000;
+//const Int_t maxCosmicTracks = 10000000;
 //const Int_t maxCosmicTracks = 100000;
-//const Int_t maxCosmicTracks = 30000;
+const Int_t maxCosmicTracks = 30000;
 
 Double_t minTrackMCS_anode;
 Double_t minTrackMCS_cathode;
@@ -103,6 +103,10 @@ Double_t calibDeltaZ[101][101][401];
 Double_t trueDeltaX[101][101][401];
 Double_t trueDeltaY[101][101][401];
 Double_t trueDeltaZ[101][101][401];
+
+Double_t trueFwdDeltaX[101][101][401];
+Double_t trueFwdDeltaY[101][101][401];
+Double_t trueFwdDeltaZ[101][101][401];
 
 Double_t calibTopDeltaX[101][401];
 Double_t calibTopDeltaY[101][401];
@@ -208,6 +212,8 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
 void saveTrackInfo(const vector<trackInfo> &tracks);
 void loadTruthMap();
 Double_t getTruthOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp);
+void loadTruthFwdMap();
+Double_t getTruthFwdOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp);
 void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, Int_t numTrackSegPoints);
 PCAResults DoPCA(const PointCloud &points);
 
@@ -242,6 +248,7 @@ Int_t main(Int_t argc, Char_t** argv)
   }
 
   loadTruthMap();
+  loadTruthFwdMap();
   
   //vector<trackInfo> laserTracks = getTrackSet(1);
   vector<trackInfo> laserTracks = getLArSoftTrackSet(1);
@@ -249,11 +256,11 @@ Int_t main(Int_t argc, Char_t** argv)
   vector<trackInfo> cosmicTracks = getLArSoftTrackSet(2);
   //saveTrackInfo(cosmicTracks);
 
-  doCalibFaces(cosmicTracks,50,30); // was 50,15
+  //doCalibFaces(cosmicTracks,50,15); // was 50,15
   ////doCalibration(laserTracks,cosmicTracks,0.05,3,1,1);
   ////doCalibration(laserTracks,cosmicTracks,0.02,3,1,1);
   //////doCalibration(laserTracks,cosmicTracks,0.01,3,0,2);
-  //doCalibration(laserTracks,cosmicTracks,0.01,3,1,1); // Nominal Configuration
+  doCalibration(laserTracks,cosmicTracks,0.01,3,1,1); // Nominal Configuration
   
   timer.Stop();
   cout << "Calibration Time:  " << timer.CpuTime() << " sec." << endl;
@@ -1006,13 +1013,26 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
     
       for(Int_t j = 0; j < *nPoints; j++)
       {
+        //if ((doBulk == true) && ((j % 10) != 0) && (j != *nPoints-1)) continue;
+        //if ((doBulk == false) && (j > 52) && (j < *nPoints-53) && (j != *nPoints-1)) continue;
         if (((j % 10) != 0) && (j != *nPoints-1)) continue;
-        
+	
         electron.x = -1.0; // Dummy (currently don't save this info in file)
         electron.y = -1.0; // Dummy (currently don't save this info in file)
         electron.z = -1.0; // Dummy (currently don't save this info in file)
         electron.t = -1.0; // Dummy (currently don't save this info in file)
-        electron.x_mod = doCoordTransformX(pointX[j]+x_offset);
+        //electron.x_mod = doCoordTransformX(pointX[j]+x_offset);
+	if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
+	  if (x0 < x1) {
+	    electron.x_mod = doCoordTransformX(pointX[j]+x_offset)+getTruthFwdOffset(0.0,y0,z0,1);
+	  }
+	  else {
+	    electron.x_mod = doCoordTransformX(pointX[j]+x_offset)+getTruthFwdOffset(0.0,y1,z1,1);
+	  }
+        }
+        else {
+          electron.x_mod = doCoordTransformX(pointX[j]+x_offset);
+        }
         electron.y_mod = doCoordTransformY(pointY[j]);
         electron.z_mod = doCoordTransformZ(pointZ[j]);
         electron.t_mod = -1.0; // Dummy (currently don't save this info in file)
@@ -2516,6 +2536,187 @@ Double_t getTruthOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp)
   return offset;
 }
 
+void loadTruthFwdMap()
+{
+  TFile* fileTruth = new TFile("data/dispOutput_MicroBooNE_E273.root");
+
+  TTreeReader reader("SpaCEtree_fwdDisp", fileTruth);
+  TTreeReaderValue<Double_t> reco_x(reader, "x_reco.data_fwdDisp");
+  TTreeReaderValue<Double_t> reco_y(reader, "y_reco.data_fwdDisp");
+  TTreeReaderValue<Double_t> reco_z(reader, "z_reco.data_fwdDisp");
+  TTreeReaderValue<Double_t> Dx(reader, "Dx.data_fwdDisp");
+  TTreeReaderValue<Double_t> Dy(reader, "Dy.data_fwdDisp");
+  TTreeReaderValue<Double_t> Dz(reader, "Dz.data_fwdDisp");
+  TTreeReaderValue<Int_t> elecFate(reader, "elecFate.data_fwdDisp");
+
+  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
+  {
+    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
+    {
+      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
+      {
+        trueFwdDeltaX[x][y][z] = 0.0;
+        trueFwdDeltaY[x][y][z] = 0.0;
+        trueFwdDeltaZ[x][y][z] = 0.0;
+      }
+    }
+  }
+
+  while (reader.Next())
+  {
+    if (*elecFate == 1) {
+      trueFwdDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dx;
+      trueFwdDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dy;
+      trueFwdDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dz;
+    }
+    else {
+      trueFwdDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -999;
+      trueFwdDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -999;
+      trueFwdDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -999;
+    }
+  }
+
+  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
+  {
+    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
+    {
+      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
+      {
+        if (trueFwdDeltaX[x][y][z] == -999) {
+          if (y == nCalibDivisions_y-1) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][nCalibDivisions_y-2][z];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][nCalibDivisions_y-2][z];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][nCalibDivisions_y-2][z];
+          }
+          else if (y == 1) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][2][z];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][2][z];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][2][z];
+          }
+          else if (z == nCalibDivisions_z-1) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][y][nCalibDivisions_z-2];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][y][nCalibDivisions_z-2];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][y][nCalibDivisions_z-2];
+          }
+          else if (z == 1) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][y][2];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][y][2];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][y][2];
+          }
+	}
+      }
+    }
+  }
+
+  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
+  {
+    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
+    {
+      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
+      {
+        if (trueFwdDeltaX[x][y][z] == -999) {
+          if ((y == nCalibDivisions_y) && (z == 0)) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][nCalibDivisions_y-1][1];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][nCalibDivisions_y-1][1];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][nCalibDivisions_y-1][1];
+          }
+          else if ((y == nCalibDivisions_y) && (z == nCalibDivisions_z)) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
+          }
+          else if ((y == 0) && (z == 0)) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][1][1];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][1][1];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][1][1];
+          }
+          else if ((y == 0) && (z == nCalibDivisions_z)) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][1][nCalibDivisions_z-1];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][1][nCalibDivisions_z-1];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][1][nCalibDivisions_z-1];
+          }
+	}
+      }
+    }
+  }
+
+  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
+  {
+    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
+    {
+      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
+      {
+        if (trueFwdDeltaX[x][y][z] == -999) {
+          if (y == nCalibDivisions_y) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][nCalibDivisions_y-1][z];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][nCalibDivisions_y-1][z];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][nCalibDivisions_y-1][z];
+          }
+          else if (y == 0) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][1][z];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][1][z];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][1][z];
+          }
+          else if (z == nCalibDivisions_z) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][y][nCalibDivisions_z-1];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][y][nCalibDivisions_z-1];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][y][nCalibDivisions_z-1];
+          }
+          else if (z == 0) {
+            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][y][1];
+            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][y][1];
+            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][y][1];
+          }
+	}
+      }
+    }
+  }
+
+  return;
+}
+
+Double_t getTruthFwdOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp)
+{
+  Double_t offset = 0.0;
+  
+  if (xVal < 0.0) {
+    xVal = 0.0;
+  }
+  if (xVal > Lx) {
+    xVal = Lx;
+  }
+
+  if (yVal < 0.0) {
+    yVal = 0.0;
+  }
+  if (yVal > Ly) {
+    yVal = Ly;
+  }
+
+  if (zVal < 0.0) {
+    zVal = 0.0;
+  }
+  if (zVal > Lz) {
+    zVal = Lz;
+  }
+
+  if (comp == 1) {
+    offset = trueFwdDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
+  }
+  else if (comp == 2) {
+    offset = trueFwdDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
+  }
+  else if (comp == 3) {
+    offset = trueFwdDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
+  }
+  
+  if ((comp == 1) && (offset > 0.0)) {
+    offset = 0.0;
+  }
+
+  return offset;
+}
+
 void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, Int_t numTrackSegPoints)
 {
   for(Int_t x = 0; x <= nCalibDivisions_x; x++)
@@ -2637,10 +2838,13 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
 	}
 
 	Point tempPoint;
-        tempPoint.x = calibTrack.track.electrons.at(j).x_mod;
-        tempPoint.y = calibTrack.track.electrons.at(j).y_mod;
-        tempPoint.z = calibTrack.track.electrons.at(j).z_mod;
-
+        //tempPoint.x = calibTrack.track.electrons.at(j).x_mod;
+        //tempPoint.y = calibTrack.track.electrons.at(j).y_mod;
+        //tempPoint.z = calibTrack.track.electrons.at(j).z_mod;
+        tempPoint.x = calibTrack.track.electrons.at(j).x_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,1);
+        tempPoint.y = calibTrack.track.electrons.at(j).y_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,2);
+        tempPoint.z = calibTrack.track.electrons.at(j).z_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,3);
+ 
         calibPoints.push_back(tempPoint);
       }
     }
@@ -2656,9 +2860,12 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
 	}
 	
 	Point tempPoint;
-        tempPoint.x = calibTrack.track.electrons.at(j).x_mod;
-        tempPoint.y = calibTrack.track.electrons.at(j).y_mod;
-        tempPoint.z = calibTrack.track.electrons.at(j).z_mod;
+        //tempPoint.x = calibTrack.track.electrons.at(j).x_mod;
+        //tempPoint.y = calibTrack.track.electrons.at(j).y_mod;
+        //tempPoint.z = calibTrack.track.electrons.at(j).z_mod;
+        tempPoint.x = calibTrack.track.electrons.at(j).x_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,1);
+        tempPoint.y = calibTrack.track.electrons.at(j).y_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,2);
+        tempPoint.z = calibTrack.track.electrons.at(j).z_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,3);
 
         calibPoints.push_back(tempPoint);
       }
