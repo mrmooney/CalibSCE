@@ -254,7 +254,8 @@ Int_t main(Int_t argc, Char_t** argv)
   vector<trackInfo> laserTracks = getLArSoftTrackSet(1);
   //vector<trackInfo> cosmicTracks = getTrackSet(2);
   vector<trackInfo> cosmicTracks = getLArSoftTrackSet(2);
-  //saveTrackInfo(cosmicTracks);
+
+  saveTrackInfo(cosmicTracks);
 
   //doCalibFaces(cosmicTracks,50,15); // was 50,15
   ////doCalibration(laserTracks,cosmicTracks,0.05,3,1,1);
