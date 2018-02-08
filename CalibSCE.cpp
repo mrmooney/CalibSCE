@@ -51,6 +51,7 @@ const Char_t *inputFileLaser = "data/laserDataSCE_NEW.root";
 //const Char_t *inputFileCosmic = "data/oldMCsample_50000events.root";
 //const Char_t *inputFileCosmic = "data/newMCsample_2Mevents.root";
 const Char_t *inputFileCosmic = "data/MC_Cosmics.root";
+//const Char_t *inputFileCosmic = "data/MC_Cosmics_NoSCE.root";
 //const Char_t *inputFileCosmic = "data/Data_Run1_EXTBNB.root";
 //const Char_t *inputFileCosmic = "data/first_set_of_EXTBNB_production.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP.root";
@@ -67,6 +68,7 @@ const Double_t Lz = 10.0;
 
 const Bool_t isMC = true;
 const Bool_t doBulk = true;
+const Bool_t isSCEon = true;
 
 const Double_t relAngleCut = 20.0;
 const Double_t maxXdist = 0.05;
@@ -262,8 +264,8 @@ Int_t main(Int_t argc, Char_t** argv)
   ////doCalibration(laserTracks,cosmicTracks,0.05,3,1,1);
   ////doCalibration(laserTracks,cosmicTracks,0.02,3,1,1);
   //////doCalibration(laserTracks,cosmicTracks,0.01,3,0,2);
-  doCalibration(laserTracks,cosmicTracks,0.01,3,1,1); // Nominal Configuration
-  //doCalibration(laserTracks,cosmicTracks,0.01,1,1,1); // Nominal Configuration #2
+  //doCalibration(laserTracks,cosmicTracks,0.01,3,1,1); // Nominal Configuration
+  ////doCalibration(laserTracks,cosmicTracks,0.01,1,1,1); // Nominal Configuration #2
   
   timer.Stop();
   cout << "Calibration Time:  " << timer.CpuTime() << " sec." << endl;
@@ -801,20 +803,27 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
   else if(inputType == 2)
   {
     mapFile = new TFile(inputFileCosmic,"READ");
-
-    TTreeReader reader("SCEtree", mapFile);
-    TTreeReaderValue<Double_t> track_startX(reader, "track_startX");
-    TTreeReaderValue<Double_t> track_startY(reader, "track_startY");
-    TTreeReaderValue<Double_t> track_startZ(reader, "track_startZ");
-    TTreeReaderValue<Double_t> track_endX(reader, "track_endX");
-    TTreeReaderValue<Double_t> track_endY(reader, "track_endY");
-    TTreeReaderValue<Double_t> track_endZ(reader, "track_endZ");
-    TTreeReaderValue<Int_t> nPoints(reader, "track_nPoints");
-    TTreeReaderArray<Double_t> pointX(reader, "track_pointX");
-    TTreeReaderArray<Double_t> pointY(reader, "track_pointY");
-    TTreeReaderArray<Double_t> pointZ(reader, "track_pointZ");
-    TTreeReaderValue<Double_t> track_MCS(reader, "track_MCS_measurement");
-    TTreeReaderValue<Double_t> track_t0(reader, "track_t0");
+    
+    char* filestring = (char*) "";
+    char* filestring2 = (char*) "";
+    if (isSCEon == false) {
+      filestring = (char*) "_copy";
+      filestring2 = (char*) "t0ana/";
+    }
+    
+    TTreeReader reader(Form("%sSCEtree%s",filestring2,filestring), mapFile);
+    TTreeReaderValue<Double_t> track_startX(reader, Form("track_startX%s",filestring));
+    TTreeReaderValue<Double_t> track_startY(reader, Form("track_startY%s",filestring));
+    TTreeReaderValue<Double_t> track_startZ(reader, Form("track_startZ%s",filestring));
+    TTreeReaderValue<Double_t> track_endX(reader, Form("track_endX%s",filestring));
+    TTreeReaderValue<Double_t> track_endY(reader, Form("track_endY%s",filestring));
+    TTreeReaderValue<Double_t> track_endZ(reader, Form("track_endZ%s",filestring));
+    TTreeReaderValue<Int_t> nPoints(reader, Form("track_nPoints%s",filestring));
+    TTreeReaderArray<Double_t> pointX(reader, Form("track_pointX%s",filestring));
+    TTreeReaderArray<Double_t> pointY(reader, Form("track_pointY%s",filestring));
+    TTreeReaderArray<Double_t> pointZ(reader, Form("track_pointZ%s",filestring));
+    TTreeReaderValue<Double_t> track_MCS(reader, Form("track_MCS_measurement%s",filestring));
+    TTreeReaderValue<Double_t> track_t0(reader, Form("track_t0%s",filestring));
     
     trackInfo track;
     elecInfo electron;
@@ -860,7 +869,7 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
       Double_t xE, yE, zE;
       Double_t x0, y0, z0;
       Double_t x1, y1, z1;
-    
+      
       //Double_t x_offset = 0.002564*(*track_t0); // TEMP OFFSET, CHRIS WILL FIX BUG SOON
       Double_t x_offset = 0.0;
       
@@ -919,82 +928,87 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
 
       nTracks++;
 
+      double SCEfactor = 1.0;
+      if (isSCEon == false) {
+        SCEfactor = 0.0;
+      }
+      
       // Correct track end point for cathode-piercing track (end furthest from cathode)
       if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
         if (xS < xE) {
-          xE += getTruthFwdOffset(0.0,yS+getTruthOffset(xS,yS,zS,2),zS+getTruthOffset(xS,yS,zS,3),1);
+          xE += SCEfactor*getTruthFwdOffset(0.0,yS+getTruthOffset(xS,yS,zS,2),zS+getTruthOffset(xS,yS,zS,3),1);
 	}
 	else {
-          xS += getTruthFwdOffset(0.0,yE+getTruthOffset(xE,yE,zE,2),zE+getTruthOffset(xE,yE,zE,3),1);
+          xS += SCEfactor*getTruthFwdOffset(0.0,yE+getTruthOffset(xE,yE,zE,2),zE+getTruthOffset(xE,yE,zE,3),1);
 	}
       }
       
       if(xS < maxXdist) {
         x0 = 0.0;
-        y0 = yS + getTruthOffset(xS,yS,zS,2)*1.1; // TEMP FACTOR
-        z0 = zS + getTruthOffset(xS,yS,zS,3)*1.1; // TEMP FACTOR
+        y0 = yS + SCEfactor*getTruthOffset(xS,yS,zS,2)*1.1; // TEMP FACTOR
+        z0 = zS + SCEfactor*getTruthOffset(xS,yS,zS,3)*1.1; // TEMP FACTOR
       }
       else if (xS > (Lx - maxXdist)) {
         x0 = Lx;
-        y0 = yS + getTruthOffset(xS,yS,zS,2);
-        z0 = zS + getTruthOffset(xS,yS,zS,3);
+        y0 = yS + SCEfactor*getTruthOffset(xS,yS,zS,2);
+        z0 = zS + SCEfactor*getTruthOffset(xS,yS,zS,3);
       }
       else if (min(fabs(yS),fabs(Ly-yS)) < min(fabs(zS),fabs(Lz-zS))) {
         if (fabs(yS) < fabs(Ly-yS)) {
-          x0 = xS + getTruthOffset(xS,yS,zS,1);
+          x0 = xS + SCEfactor*getTruthOffset(xS,yS,zS,1);
     	  y0 = 0.0;
-    	  z0 = zS + getTruthOffset(xS,yS,zS,3);
+    	  z0 = zS + SCEfactor*getTruthOffset(xS,yS,zS,3);
         }
         else {
-          x0 = xS + getTruthOffset(xS,yS,zS,1);
+          x0 = xS + SCEfactor*getTruthOffset(xS,yS,zS,1);
     	  y0 = Ly;
-    	  z0 = zS + getTruthOffset(xS,yS,zS,3);
+    	  z0 = zS + SCEfactor*getTruthOffset(xS,yS,zS,3);
         }
       }
       else {
         if (fabs(zS) < fabs(Lz-zS)) {
-          x0 = xS + getTruthOffset(xS,yS,zS,1);
-    	  y0 = yS + getTruthOffset(xS,yS,zS,2);
+          x0 = xS + SCEfactor*getTruthOffset(xS,yS,zS,1);
+    	  y0 = yS + SCEfactor*getTruthOffset(xS,yS,zS,2);
     	  z0 = 0.0;
         }
         else {
-          x0 = xS + getTruthOffset(xS,yS,zS,1);
-    	  y0 = yS + getTruthOffset(xS,yS,zS,2);
+          x0 = xS + SCEfactor*getTruthOffset(xS,yS,zS,1);
+    	  y0 = yS + SCEfactor*getTruthOffset(xS,yS,zS,2);
     	  z0 = Lz;
         }
       }
     
       if(xE < maxXdist) {
         x1 = 0.0;
-        y1 = yE + getTruthOffset(xE,yE,zE,2)*1.1; // TEMP FACTOR
-        z1 = zE + getTruthOffset(xE,yE,zE,3)*1.1; // TEMP FACTOR
+        y1 = yE + SCEfactor*getTruthOffset(xE,yE,zE,2)*1.1; // TEMP FACTOR
+        z1 = zE + SCEfactor*getTruthOffset(xE,yE,zE,3)*1.1; // TEMP FACTOR
       }
       else if (xE > (Lx - maxXdist)) {
         x1 = Lx;
-        y1 = yE + getTruthOffset(xE,yE,zE,2);
-        z1 = zE + getTruthOffset(xE,yE,zE,3);
+        y1 = yE + SCEfactor*getTruthOffset(xE,yE,zE,2);
+        z1 = zE + SCEfactor*getTruthOffset(xE,yE,zE,3);
       }
       else if (min(fabs(yE),fabs(Ly-yE)) < min(fabs(zE),fabs(Lz-zE))) {
         if (fabs(yE) < fabs(Ly-yE)) {
-          x1 = xE + getTruthOffset(xE,yE,zE,1);
+          x1 = xE + SCEfactor*getTruthOffset(xE,yE,zE,1);
     	  y1 = 0.0;
-    	  z1 = zE + getTruthOffset(xE,yE,zE,3);
+    	  z1 = zE + SCEfactor*getTruthOffset(xE,yE,zE,3);
         }
         else {
-          x1 = xE + getTruthOffset(xE,yE,zE,1);
+          x1 = xE + SCEfactor*getTruthOffset(xE,yE,zE,1);
     	  y1 = Ly;
-    	  z1 = zE + getTruthOffset(xE,yE,zE,3);
+    	  z1 = zE + SCEfactor*getTruthOffset(xE,yE,zE,3);
         }
       }
       else {
         if (fabs(zE) < fabs(Lz-zE)) {
-          x1 = xE + getTruthOffset(xE,yE,zE,1);
-    	  y1 = yE + getTruthOffset(xE,yE,zE,2);
+          x1 = xE + SCEfactor*getTruthOffset(xE,yE,zE,1);
+    	  y1 = yE + SCEfactor*getTruthOffset(xE,yE,zE,2);
     	  z1 = 0.0;
         }
         else {
-          x1 = xE + getTruthOffset(xE,yE,zE,1);
-    	  y1 = yE + getTruthOffset(xE,yE,zE,2);
+          x1 = xE + SCEfactor*getTruthOffset(xE,yE,zE,1);
+    	  y1 = yE + SCEfactor*getTruthOffset(xE,yE,zE,2);
     	  z1 = Lz;
         }
       }
@@ -1037,10 +1051,10 @@ vector<trackInfo> getLArSoftTrackSet(Int_t inputType)
         //electron.x_mod = doCoordTransformX(pointX[j]+x_offset);
         if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
 	  if (x0 < x1) {
-	    electron.x_mod = doCoordTransformX(pointX[j]+x_offset)+getTruthFwdOffset(0.0,y0,z0,1);
+	    electron.x_mod = doCoordTransformX(pointX[j]+x_offset)+SCEfactor*getTruthFwdOffset(0.0,y0,z0,1);
 	  }
 	  else {
-	    electron.x_mod = doCoordTransformX(pointX[j]+x_offset)+getTruthFwdOffset(0.0,y1,z1,1);
+	    electron.x_mod = doCoordTransformX(pointX[j]+x_offset)+SCEfactor*getTruthFwdOffset(0.0,y1,z1,1);
 	  }
         }
         else {
@@ -2838,6 +2852,11 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
     }
     avgX2 /= 5.0;
 
+    double SCEfactor = 1.0;
+    if (isSCEon == false) {
+      SCEfactor = 0.0;
+    }
+    
     Int_t numBadPoints = 0;
     if(avgX1 < avgX2) {
       xValDistorted = calibTrack.track.electrons.at(0).x_mod;
@@ -2854,9 +2873,9 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
         //tempPoint.x = calibTrack.track.electrons.at(j).x_mod;
         //tempPoint.y = calibTrack.track.electrons.at(j).y_mod;
         //tempPoint.z = calibTrack.track.electrons.at(j).z_mod;
-        tempPoint.x = calibTrack.track.electrons.at(j).x_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,1); // TEMP USE OF TRUTH INFO
-        tempPoint.y = calibTrack.track.electrons.at(j).y_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,2); // TEMP USE OF TRUTH INFO
-        tempPoint.z = calibTrack.track.electrons.at(j).z_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,3); // TEMP USE OF TRUTH INFO
+        tempPoint.x = calibTrack.track.electrons.at(j).x_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,1); // TEMP USE OF TRUTH INFO
+        tempPoint.y = calibTrack.track.electrons.at(j).y_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,2); // TEMP USE OF TRUTH INFO
+        tempPoint.z = calibTrack.track.electrons.at(j).z_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,3); // TEMP USE OF TRUTH INFO
  
         calibPoints.push_back(tempPoint);
       }
@@ -2876,9 +2895,9 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
         //tempPoint.x = calibTrack.track.electrons.at(j).x_mod;
         //tempPoint.y = calibTrack.track.electrons.at(j).y_mod;
         //tempPoint.z = calibTrack.track.electrons.at(j).z_mod;
-        tempPoint.x = calibTrack.track.electrons.at(j).x_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,1); // TEMP USE OF TRUTH INFO
-        tempPoint.y = calibTrack.track.electrons.at(j).y_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,2); // TEMP USE OF TRUTH INFO
-        tempPoint.z = calibTrack.track.electrons.at(j).z_mod + getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,3); // TEMP USE OF TRUTH INFO
+        tempPoint.x = calibTrack.track.electrons.at(j).x_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,1); // TEMP USE OF TRUTH INFO
+        tempPoint.y = calibTrack.track.electrons.at(j).y_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,2); // TEMP USE OF TRUTH INFO
+        tempPoint.z = calibTrack.track.electrons.at(j).z_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,3); // TEMP USE OF TRUTH INFO
 
         calibPoints.push_back(tempPoint);
       }
