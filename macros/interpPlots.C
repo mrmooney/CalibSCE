@@ -80,7 +80,7 @@ void makeInterpPlot(Int_t numDivisions, Double_t zBin, Int_t logScale, Int_t whi
   TColor::CreateGradientColorTable(5,stops,red,green,blue,255);
   gStyle->SetNumberContours(255);
 
-  TFile* fileSCE = new TFile(Form("dispOutput_MicroBooNE_E%d.root",(Int_t)Efield));
+  TFile* fileSCE = new TFile(Form("data/dispOutput_MicroBooNE_E%d.root",(Int_t)Efield));
   TTree* treeSCE = (TTree*)fileSCE->Get("SpaCEtree");
   TProfile2D* profileSCE = new TProfile2D("profileSCE","",numDivisions_x+1,-Lx/(2.0*((Double_t) numDivisions_x)),Lx+Lx/(2.0*((Double_t) numDivisions_x)),numDivisions_y+1,-1.0*(Ly/2.0)-1.0*Ly/(2.0*((Double_t) numDivisions_y)),(Ly/2.0)+Ly/(2.0*((Double_t) numDivisions_y)));
   //TProfile2D* profileSCE = new TProfile2D("profileSCE","",numDivisions_x+1,-1.0*Lx/(2.0*((Double_t) numDivisions_x)),Lx+Lx/(2.0*((Double_t) numDivisions_x)),numDivisions_y+1,-1.0*(Ly/2.0)-1.0*Ly/(2.0*((Double_t) numDivisions_y)),(Ly/2.0)+Ly/(2.0*((Double_t) numDivisions_y)));

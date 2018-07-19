@@ -101,7 +101,7 @@ void makeDispPlot(Int_t numDivisions, Double_t zBin, Int_t logScale, Int_t which
   TColor::CreateGradientColorTable(5,stops,red,green,blue,255);
   gStyle->SetNumberContours(255);
 
-  TFile* fileSCE = new TFile(Form("dispOutput_MicroBooNE_E%d.root",(Int_t)Efield));
+  TFile* fileSCE = new TFile(Form("data/dispOutput_MicroBooNE_E%d.root",(Int_t)Efield));
   TTree* treeSCE;
   if(whichPlot == 1)
     treeSCE = (TTree*)fileSCE->Get("SpaCEtree_fwdDisp");
