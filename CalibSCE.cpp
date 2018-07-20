@@ -93,7 +93,9 @@ const Bool_t isSCEon = true;
 const Double_t relAngleCut = 20.0;
 const Double_t maxXdist = 0.05;
 const Double_t maxYdist = 0.20;
+//const Double_t maxYdist = 0.05;
 const Double_t maxZdist = 0.20;
+//const Double_t maxZdist = 0.05;
 
 Int_t minInputTrackNum = 0;
 //Int_t maxInputTrackNum = 1000000000;
@@ -235,7 +237,7 @@ Double_t doInvCoordTransformZ(const Double_t inputZ);
 vector<Double_t> getParabolaParameters(const vector<elecInfo> &parabola_points_track);
 vector<Double_t> findClosestPOA(const calibTrackInfo &trackA, const calibTrackInfo &trackB);
 vector<Double_t> findDistortedClosestPOA(const calibTrackInfo &trackA, const calibTrackInfo &trackB);
-void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibMode, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing);
+void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibMode, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing, Int_t xCutVal);
 vector<trackInfo> getTrackSet(Int_t mapType);
 vector<calibTrackInfo> makeCalibTracks(const vector<trackInfo> &tracks);
 void doLaserLaserCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t distScale, Double_t maxDistFactor, Int_t saveInfo);
@@ -250,7 +252,7 @@ void loadTruthFwdMap();
 Double_t getTruthFwdOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp);
 vector<Double_t> getTruthFwdOffsets(Double_t xVal, Double_t yVal, Double_t zVal);
 Double_t findCathodeOffset(Double_t yVal, Double_t zVal);
-void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, Int_t numTrackSegPoints, Double_t minWeight, Int_t minEntries, Int_t minMaxBin);
+void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, Int_t numTrackSegPoints, Double_t minWeight, Int_t minEntries, Int_t minMaxBin, Int_t saveInfo);
 PCAResults DoPCA(const PointCloud &points);
 Double_t findHistMedian(TH1F *hist);
 void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum);
@@ -358,21 +360,30 @@ Int_t main(Int_t argc, Char_t** argv)
   //vector<trackInfo> laserTracks = getTrackSet(1);
   //vector<trackInfo> cosmicTracks = getTrackSet(2);
 
+  //////////////////////////////////////////////
+  /// MAIN PART OF CODE (CHANGE THESE THINGS)
+  //////////////////////////////////////////////
+  
   vector<trackInfo> laserTracks;
-  getLArSoftTrackSet(laserTracks,1,-1,-1,-1,-1,-1);
+  getLArSoftTrackSet(laserTracks,1,-1,-1,-1,-1,-1,-1);
 
   vector<trackInfo> cosmicTracks;
   
-  getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
-  //getLArSoftTrackSet(cosmicTracks,2,1,100,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
+  ////////getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
+  getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,10000000.0,10000000.0,-1.0);
+  //getLArSoftTrackSet(cosmicTracks,2,1,10000,100000000.0,10000000.0,0.0,-1.0);
   doCalibration(laserTracks,cosmicTracks,0.01,3,1,0);
 
-  getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0);
-  //getLArSoftTrackSet(cosmicTracks,2,1,100000,0.0,0.0,0.0);
-  doCalibFaces(cosmicTracks,50,15,0.25,4,5);
+  //getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0,-1.0);
+  //doCalibFaces(cosmicTracks,50,15,0.25,4,5,0);
 
-  getLArSoftTrackSet(cosmicTracks,2,3,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
-  //getLArSoftTrackSet(cosmicTracks,2,3,100,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
+  //getLArSoftTrackSet(cosmicTracks,2,1,10000,100000000.0,10000000.0,0.0,-1.0);
+  //doCalibration(laserTracks,cosmicTracks,0.01,3,1,0);
+
+  getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0,-1.0);
+  doCalibFaces(cosmicTracks,50,15,0.25,4,5,1);
+
+  getLArSoftTrackSet(cosmicTracks,2,3,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing,-1.0);
   doCalibration(laserTracks,cosmicTracks,0.01,3,1,1);
 
   //saveTrackInfo(cosmicTracks);
@@ -821,7 +832,7 @@ vector<Double_t> findDistortedClosestPOA(const calibTrackInfo &calibTrackA, cons
   return return_vector;
 }
 
-void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibMode, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing)
+void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibMode, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing, Int_t xCutVal)
 {
   tracks.clear();
 
@@ -1038,6 +1049,8 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
       Zhist_7s->Fill(zS);
       Zhist_7e->Fill(zE);
 
+      if((xS < xCutVal) || (xE < xCutVal)) continue;
+      
       nTracks++;
 
       double SCEfactor = 1.0;
@@ -1081,24 +1094,24 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
         }
         else if (min(fabs(yS),fabs(Ly-yS)) < min(fabs(zS),fabs(Lz-zS))) {
           if (fabs(yS) < fabs(Ly-yS)) {
-            x0 = xS;
+            x0 = xS;// + 0.16*(yS-TrueBottom);//xS;
             y0 = TrueBottom;
             z0 = zS;
           }
           else {
-            x0 = xS;
+            x0 = xS;// + 0.16*(TrueTop-yS);//xS;
             y0 = TrueTop;
             z0 = zS;
           }
         }
         else {
           if (fabs(zS) < fabs(Lz-zS)) {
-            x0 = xS;
+            x0 = xS;// + 0.16*(zS-TrueUpstream);//xS;
             y0 = yS;
             z0 = TrueUpstream;
           }
           else {
-            x0 = xS;
+            x0 = xS;// + 0.16*(TrueDownstream-zS);//xS;
             y0 = yS;
             z0 = TrueDownstream;
           }
@@ -1116,24 +1129,24 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
         }
         else if (min(fabs(yE),fabs(Ly-yE)) < min(fabs(zE),fabs(Lz-zE))) {
           if (fabs(yE) < fabs(Ly-yE)) {
-            x1 = xE;
+            x1 = xE;// + 0.16*(yE-TrueBottom);//xE;
             y1 = TrueBottom;
             z1 = zE;
           }
           else {
-            x1 = xE;
+            x1 = xE;// + 0.16*(TrueTop-yE);//xE;
             y1 = TrueTop;
             z1 = zE;
           }
         }
         else {
           if (fabs(zE) < fabs(Lz-zE)) {
-            x1 = xE;
+            x1 = xE;// + 0.16*(zE-TrueUpstream);//xE;
             y1 = yE;
             z1 = TrueUpstream;
           }
           else {
-            x1 = xE;
+            x1 = xE;// + 0.16*(TrueDownstream-zE);//xE;
             y1 = yE;
             z1 = TrueDownstream;
           }
@@ -2803,7 +2816,7 @@ Double_t findCathodeOffset(Double_t yVal, Double_t zVal)
   return finalFwdOffsets.at(0);
 }
 
-void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, Int_t numTrackSegPoints, Double_t minWeight, Int_t minEntries, Int_t minMaxBin)
+void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, Int_t numTrackSegPoints, Double_t minWeight, Int_t minEntries, Int_t minMaxBin, Int_t saveInfo)
 {
   const double bufferDist = 0.05;
 
@@ -2982,7 +2995,9 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
   T_faceOffsets->Branch("theta",&theta,"data_faceOffsets/D");
   T_faceOffsets->Branch("phi",&phi,"data_faceOffsets/D");
   T_faceOffsets->Branch("weight",&tempFactor,"data_faceOffsets/D");
-  T_faceOffsets->SetDirectory(outputFile);
+  if(saveInfo == 1) {
+    T_faceOffsets->SetDirectory(outputFile);
+  }
   
   for(Int_t i = 0; i < numCosmicTracks; i++)
   {
@@ -3369,7 +3384,9 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
   
     if (whichFace >= 0) {
       cout << "  " << whichFace << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << endl;
-      T_faceOffsets->Fill();
+      if(saveInfo == 1) {
+        T_faceOffsets->Fill();
+      }
     }
   }
   
@@ -3607,7 +3624,9 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
   T_calibFaces->Branch("numEntries",&numEntries,"data_calibFaces/I");
   T_calibFaces->Branch("elecFate",&elecFate,"data_calibFaces/I");
   T_calibFaces->Branch("faceNum",&faceNum,"data_calibFaces/I");
-  T_calibFaces->SetDirectory(outputFile);
+  if(saveInfo == 1) {
+    T_calibFaces->SetDirectory(outputFile);
+  }
   
   faceNum = 0;
   x_reco = -1.0*Lx/nCalibDivisions_x;
@@ -3646,8 +3665,10 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
       faceCalibHistTopDeltaX->SetBinContent(z+1,x+1,Dx);
       faceCalibHistTopDeltaY->SetBinContent(z+1,x+1,Dy);
       faceCalibHistTopDeltaZ->SetBinContent(z+1,x+1,Dz);
-	
-      T_calibFaces->Fill();
+
+      if(saveInfo == 1) {
+        T_calibFaces->Fill();
+      }
     }
   }
 
@@ -3689,7 +3710,9 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
       faceCalibHistBottomDeltaY->SetBinContent(z+1,x+1,Dy);
       faceCalibHistBottomDeltaZ->SetBinContent(z+1,x+1,Dz);
 
-      T_calibFaces->Fill();
+      if(saveInfo == 1) {
+        T_calibFaces->Fill();
+      }
     }
   }
   
@@ -3731,7 +3754,9 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
       faceCalibHistUpstreamDeltaY->SetBinContent(x+1,y+1,Dy);
       faceCalibHistUpstreamDeltaZ->SetBinContent(x+1,y+1,Dz);
 
-      T_calibFaces->Fill();
+      if(saveInfo == 1) {
+        T_calibFaces->Fill();
+      }
     }
   }
   
@@ -3773,7 +3798,9 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
       faceCalibHistDownstreamDeltaY->SetBinContent(x+1,y+1,Dy);
       faceCalibHistDownstreamDeltaZ->SetBinContent(x+1,y+1,Dz);
 
-      T_calibFaces->Fill();
+      if(saveInfo == 1) {
+        T_calibFaces->Fill();
+      }
     }
   }
   
@@ -3808,7 +3835,9 @@ void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, I
       faceCalibHistCathodeDeltaY->SetBinContent(z+1,y+1,Dy);
       faceCalibHistCathodeDeltaZ->SetBinContent(z+1,y+1,Dz);
 
-      T_calibFaces->Fill();
+      if(saveInfo == 1) {
+        T_calibFaces->Fill();
+      }
     }
   }
   

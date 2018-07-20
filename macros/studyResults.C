@@ -102,14 +102,14 @@ void studyResults()
     //if((*elecFate_actual == 1) && (*elecFate_calib == 1) && (*zReco_calib > 9.5) && (*xReco_calib < 1.0) && (*xReco_calib > 0.1)) {
 
       
-      DxHist->Fill(-100.0*(xScale*(*Dx_calib) - *Dx_actual));
+      DxHist->Fill(100.0*(xScale*(*Dx_calib) - *Dx_actual));
       DyHist->Fill(100.0*(yScale*(*Dy_calib) - *Dy_actual));
       DzHist->Fill(100.0*(zScale*(*Dz_calib) - *Dz_actual));
       
       DyHist2D->Fill(*xReco_calib,*yReco_calib,100.0*(yScale*(*Dy_calib) - *Dy_actual));
       DyHist2D_Num->Fill(*xReco_calib,*yReco_calib,1.0);
       
-      DxHist2D->Fill(*xReco_calib,*yReco_calib,-100.0*(xScale*(*Dx_calib) - *Dx_actual));
+      DxHist2D->Fill(*xReco_calib,*yReco_calib,100.0*(xScale*(*Dx_calib) - *Dx_actual));
       DxHist2D_Num->Fill(*xReco_calib,*yReco_calib,1.0);
       
       DxHist_actual->Fill(100.0*(*Dx_actual));
