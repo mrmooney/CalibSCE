@@ -167,6 +167,26 @@ TH2F *faceCalibHistCathodeDeltaX;
 TH2F *faceCalibHistCathodeDeltaY;
 TH2F *faceCalibHistCathodeDeltaZ;
 
+TH2F *faceSimHistTopDeltaX;
+TH2F *faceSimHistTopDeltaY;
+TH2F *faceSimHistTopDeltaZ;
+
+TH2F *faceSimHistBottomDeltaX;
+TH2F *faceSimHistBottomDeltaY;
+TH2F *faceSimHistBottomDeltaZ;
+
+TH2F *faceSimHistUpstreamDeltaX;
+TH2F *faceSimHistUpstreamDeltaY;
+TH2F *faceSimHistUpstreamDeltaZ;
+
+TH2F *faceSimHistDownstreamDeltaX;
+TH2F *faceSimHistDownstreamDeltaY;
+TH2F *faceSimHistDownstreamDeltaZ;
+
+TH2F *faceSimHistCathodeDeltaX;
+TH2F *faceSimHistCathodeDeltaY;
+TH2F *faceSimHistCathodeDeltaZ;
+
 struct elecInfo
 {
   Double_t x;
@@ -237,7 +257,7 @@ Double_t doInvCoordTransformZ(const Double_t inputZ);
 vector<Double_t> getParabolaParameters(const vector<elecInfo> &parabola_points_track);
 vector<Double_t> findClosestPOA(const calibTrackInfo &trackA, const calibTrackInfo &trackB);
 vector<Double_t> findDistortedClosestPOA(const calibTrackInfo &trackA, const calibTrackInfo &trackB);
-void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibMode, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing, Int_t xCutVal);
+void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibMode, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing);
 vector<trackInfo> getTrackSet(Int_t mapType);
 vector<calibTrackInfo> makeCalibTracks(const vector<trackInfo> &tracks);
 void doLaserLaserCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t distScale, Double_t maxDistFactor, Int_t saveInfo);
@@ -365,27 +385,29 @@ Int_t main(Int_t argc, Char_t** argv)
   //////////////////////////////////////////////
   
   vector<trackInfo> laserTracks;
-  getLArSoftTrackSet(laserTracks,1,-1,-1,-1,-1,-1,-1);
+  getLArSoftTrackSet(laserTracks,1,-1,-1,-1,-1,-1);
 
   vector<trackInfo> cosmicTracks;
   
-  ////////getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
-  getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,10000000.0,10000000.0,-1.0);
-  //getLArSoftTrackSet(cosmicTracks,2,1,10000,100000000.0,10000000.0,0.0,-1.0);
-  doCalibration(laserTracks,cosmicTracks,0.01,3,1,0);
-
-  //getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0,-1.0);
-  //doCalibFaces(cosmicTracks,50,15,0.25,4,5,0);
-
-  //getLArSoftTrackSet(cosmicTracks,2,1,10000,100000000.0,10000000.0,0.0,-1.0);
+  //////////getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
+  //getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,10000000.0,10000000.0);
   //doCalibration(laserTracks,cosmicTracks,0.01,3,1,0);
+  //
+  ////getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0);
+  ////doCalibFaces(cosmicTracks,50,15,0.25,4,5,0);
+  //
+  ////getLArSoftTrackSet(cosmicTracks,2,1,10000,100000000.0,10000000.0,0.0);
+  ////doCalibration(laserTracks,cosmicTracks,0.01,3,1,0);
+  //
+  //getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0);
+  //doCalibFaces(cosmicTracks,50,15,0.25,4,5,1);
+  //
+  //getLArSoftTrackSet(cosmicTracks,2,3,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
+  //doCalibration(laserTracks,cosmicTracks,0.01,3,1,1);
 
-  getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0,-1.0);
-  doCalibFaces(cosmicTracks,50,15,0.25,4,5,1);
-
-  getLArSoftTrackSet(cosmicTracks,2,3,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing,-1.0);
+  getLArSoftTrackSet(cosmicTracks,2,4,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
   doCalibration(laserTracks,cosmicTracks,0.01,3,1,1);
-
+  
   //saveTrackInfo(cosmicTracks);
   
   timer.Stop();
@@ -832,7 +854,7 @@ vector<Double_t> findDistortedClosestPOA(const calibTrackInfo &calibTrackA, cons
   return return_vector;
 }
 
-void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibMode, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing, Int_t xCutVal)
+void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibMode, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing)
 {
   tracks.clear();
 
@@ -1049,8 +1071,6 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
       Zhist_7s->Fill(zS);
       Zhist_7e->Fill(zE);
 
-      if((xS < xCutVal) || (xE < xCutVal)) continue;
-      
       nTracks++;
 
       double SCEfactor = 1.0;
@@ -1060,7 +1080,7 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
       
       // Correct track end point furthest from cathode/anode
       Double_t cathodeOffset = 0.0;
-      if(calibMode == 2) {
+      if((calibMode == 2) || (calibMode == 4)) {
         if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
           if (xS < xE) {
             cathodeOffset = findCathodeOffset(yS,zS);
@@ -1223,7 +1243,7 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
           }
         }
       }
-      else {
+      else if(calibMode == 3) {
         if(xS < maxXdist) {
           x0 = TrueCathode;
           y0 = yS + getFaceCorr(xS,yS,zS,4,2);
@@ -1294,6 +1314,77 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
           }
         }
       }
+      else if(calibMode == 4) {
+        if(xS < maxXdist) {
+          x0 = TrueCathode;
+          y0 = yS + SCEfactor*StruthOffsets.at(1);
+          z0 = zS + SCEfactor*StruthOffsets.at(2);
+        }
+        else if (xS > (Lx - maxXdist)) {
+          x0 = TrueAnode;
+          y0 = yS;
+          z0 = zS;
+        }
+        else if (min(fabs(yS),fabs(Ly-yS)) < min(fabs(zS),fabs(Lz-zS))) {
+          if (fabs(yS) < fabs(Ly-yS)) {
+            x0 = xS + SCEfactor*(TrueBottom-yS)*StruthOffsets.at(0)/StruthOffsets.at(1);
+            y0 = TrueBottom;
+            z0 = zS + SCEfactor*(TrueBottom-yS)*StruthOffsets.at(2)/StruthOffsets.at(1);
+          }
+          else {
+            x0 = xS + SCEfactor*(TrueTop-yS)*StruthOffsets.at(0)/StruthOffsets.at(1);
+            y0 = TrueTop;
+            z0 = zS + SCEfactor*(TrueTop-yS)*StruthOffsets.at(2)/StruthOffsets.at(1);
+          }
+        }
+        else {
+          if (fabs(zS) < fabs(Lz-zS)) {
+            x0 = xS + SCEfactor*(TrueUpstream-zS)*StruthOffsets.at(0)/StruthOffsets.at(2);
+            y0 = yS + SCEfactor*(TrueUpstream-zS)*StruthOffsets.at(1)/StruthOffsets.at(2);
+            z0 = TrueUpstream;
+          }
+          else {
+            x0 = xS + SCEfactor*(TrueDownstream-zS)*StruthOffsets.at(0)/StruthOffsets.at(2);
+            y0 = yS + SCEfactor*(TrueDownstream-zS)*StruthOffsets.at(1)/StruthOffsets.at(2);
+            z0 = TrueDownstream;
+          }
+        }
+        
+        if(xE < maxXdist) {
+          x1 = TrueCathode;
+          y1 = yE + SCEfactor*EtruthOffsets.at(1);
+          z1 = zE + SCEfactor*EtruthOffsets.at(2);
+        }
+        else if (xE > (Lx - maxXdist)) {
+          x1 = TrueAnode;
+          y1 = yE;
+          z1 = zE;
+        }
+        else if (min(fabs(yE),fabs(Ly-yE)) < min(fabs(zE),fabs(Lz-zE))) {
+          if (fabs(yE) < fabs(Ly-yE)) {
+            x1 = xE + SCEfactor*(TrueBottom-yE)*EtruthOffsets.at(0)/EtruthOffsets.at(1);
+            y1 = TrueBottom;
+            z1 = zE + SCEfactor*(TrueBottom-yE)*EtruthOffsets.at(2)/EtruthOffsets.at(1);
+          }
+          else {
+            x1 = xE + SCEfactor*(TrueTop-yE)*EtruthOffsets.at(0)/EtruthOffsets.at(1);
+            y1 = TrueTop;
+            z1 = zE + SCEfactor*(TrueTop-yE)*EtruthOffsets.at(2)/EtruthOffsets.at(1);
+          }
+        }
+        else {
+          if (fabs(zE) < fabs(Lz-zE)) {
+            x1 = xE + SCEfactor*(TrueUpstream-zE)*EtruthOffsets.at(0)/EtruthOffsets.at(2);
+            y1 = yE + SCEfactor*(TrueUpstream-zE)*EtruthOffsets.at(1)/EtruthOffsets.at(2);
+            z1 = TrueUpstream;
+          }
+          else {
+            x1 = xE + SCEfactor*(TrueDownstream-zE)*EtruthOffsets.at(0)/EtruthOffsets.at(2);
+            y1 = yE + SCEfactor*(TrueDownstream-zE)*EtruthOffsets.at(1)/EtruthOffsets.at(2);
+            z1 = TrueDownstream;
+          }
+        }
+      }
       
       Double_t trackLength = sqrt(pow(x0-x1,2.0)+pow(y0-y1,2.0)+pow(z0-z1,2.0));
       
@@ -1357,7 +1448,7 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
             electron.x_mod = doCoordTransformX(pointX[j]);
           }
 	}
-	else {
+	else if (calibMode == 3) {
           if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
 	    if(xS < xE) {
 	      electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)-getFaceCorr(xS,yS,zS,4,1)-OffsetCathode; // not quite correct (improper inverse operation)
@@ -1365,6 +1456,17 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
 	    else {
 	      electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)-getFaceCorr(xE,yE,zE,4,1)-OffsetCathode; // not quite correct (improper inverse operation)
 	    }
+	  }
+          else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
+            electron.x_mod = doCoordTransformX(pointX[j])+(TrueAnode-ShiftedAnode);
+          }
+          else {
+            electron.x_mod = doCoordTransformX(pointX[j]);
+          }
+	}
+	else if(calibMode == 4) {
+          if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
+	    electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)+SCEfactor*cathodeOffset;
 	  }
           else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
             electron.x_mod = doCoordTransformX(pointX[j])+(TrueAnode-ShiftedAnode);
