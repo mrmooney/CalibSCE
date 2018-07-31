@@ -50,6 +50,9 @@ float TrilinInterp(float x, float y, float z, float q000, float q001, float q010
 
 void studyResults2()
 {
+  const Double_t bufferLength = 0.05;
+  //const Double_t bufferLength = 0.0;
+
   TGaxis::SetMaxDigits(2);
 
   Double_t numDivisions_x = numDivisions;
@@ -66,20 +69,43 @@ void studyResults2()
   TH1F *origAngHist = new TH1F("origAngHist","",50,0.0,10.0);
   TH1F *corrAngHist = new TH1F("corrAngHist","",50,0.0,10.0);
   
-  TFile* inputFileInterp = new TFile("output_interp.root");
+  //TFile* inputFileInterp = new TFile("output_interp.root");
+  //TFile* inputFileInterp = new TFile("output_MC.root");
+  TFile* inputFileInterp = new TFile("output_MC_30k.root");
+  //TFile* inputFileInterp = new TFile("output_data.root");
+  //TFile* inputFileInterp = new TFile("output_data_new.root");
+  //TFile* inputFileInterp = new TFile("output_data_30k.root");
+  //TFile* inputFileInterp = new TFile("../results/Results100kTracks_MC_Dec22_2017_withInterp.root");
+  //TFile* inputFileInterp = new TFile("../results/Results100kTracks_MC_Dec22_2017.root");
+  //TFile* inputFileInterp = new TFile("../results/Results100kTracks_MC_Jan4_2018.root");
   TTreeReader readerCalib("SpaCEtree_calib", inputFileInterp);
-  TTreeReaderValue<Double_t> Dx_calib(readerCalib, "Dx");
-  TTreeReaderValue<Double_t> Dy_calib(readerCalib, "Dy");
-  TTreeReaderValue<Double_t> Dz_calib(readerCalib, "Dz");
-  TTreeReaderValue<Double_t> xReco_calib(readerCalib, "x_reco");
-  TTreeReaderValue<Double_t> yReco_calib(readerCalib, "y_reco");
-  TTreeReaderValue<Double_t> zReco_calib(readerCalib, "z_reco");
-  TTreeReaderValue<Double_t> xTrue_calib(readerCalib, "x_true");
-  TTreeReaderValue<Double_t> yTrue_calib(readerCalib, "y_true");
-  TTreeReaderValue<Double_t> zTrue_calib(readerCalib, "z_true");
-  TTreeReaderValue<Int_t> elecFate_calib(readerCalib, "elecFate");
+  //TTreeReaderValue<Double_t> Dx_calib(readerCalib, "Dx");
+  //TTreeReaderValue<Double_t> Dy_calib(readerCalib, "Dy");
+  //TTreeReaderValue<Double_t> Dz_calib(readerCalib, "Dz");
+  //TTreeReaderValue<Double_t> xReco_calib(readerCalib, "x_reco");
+  //TTreeReaderValue<Double_t> yReco_calib(readerCalib, "y_reco");
+  //TTreeReaderValue<Double_t> zReco_calib(readerCalib, "z_reco");
+  //TTreeReaderValue<Double_t> xTrue_calib(readerCalib, "x_true");
+  //TTreeReaderValue<Double_t> yTrue_calib(readerCalib, "y_true");
+  //TTreeReaderValue<Double_t> zTrue_calib(readerCalib, "z_true");
+  //TTreeReaderValue<Int_t> elecFate_calib(readerCalib, "elecFate");
+  TTreeReaderValue<Double_t> Dx_calib(readerCalib, "Dx.data_calib");
+  TTreeReaderValue<Double_t> Dy_calib(readerCalib, "Dy.data_calib");
+  TTreeReaderValue<Double_t> Dz_calib(readerCalib, "Dz.data_calib");
+  TTreeReaderValue<Double_t> xReco_calib(readerCalib, "x_reco.data_calib");
+  TTreeReaderValue<Double_t> yReco_calib(readerCalib, "y_reco.data_calib");
+  TTreeReaderValue<Double_t> zReco_calib(readerCalib, "z_reco.data_calib");
+  TTreeReaderValue<Double_t> xTrue_calib(readerCalib, "x_true.data_calib");
+  TTreeReaderValue<Double_t> yTrue_calib(readerCalib, "y_true.data_calib");
+  TTreeReaderValue<Double_t> zTrue_calib(readerCalib, "z_true.data_calib");
+  TTreeReaderValue<Int_t> elecFate_calib(readerCalib, "elecFate.data_calib");
 
-  TFile* inputFile = new TFile("output.root");
+  //TFile* inputFile = new TFile("output.root");
+  TFile* inputFile = new TFile("output_MC_tracks.root");
+  //TFile* inputFile = new TFile("output_MC_NoSCE_tracks.root");
+  //TFile* inputFile = new TFile("output_data_tracks.root");
+  //TFile* inputFile = new TFile("output_data_tracks_new.root");
+  //TFile* inputFile = new TFile("output_data_tracks_noMCScut.root");
   TTreeReader readerTracks("SpaCEtree_tracks", inputFile);
   TTreeReaderValue<Int_t> nElec_tracks(readerTracks, "nElec_tracks");
   TTreeReaderArray<Double_t> elecX_tracks(readerTracks, "elecX_tracks");
@@ -104,7 +130,8 @@ void studyResults2()
   }
 
   int counter = 0;
-  while (readerTracks.Next())
+  //while (readerTracks.Next())
+  while ((readerTracks.Next()) && (counter < 100000))
   {
     if(counter % 1000 == 0) {cout << counter << endl;}
     counter++;
@@ -116,7 +143,7 @@ void studyResults2()
 
       Int_t numBadPoints_start = 0;
       for (int i = 0; i < numTrackSegPoints; i++) {
-	if ((elecX_tracks[i] <= 0.0) || (elecX_tracks[i] >= Lx) || (elecY_tracks[i] <= 0.0) || (elecY_tracks[i] >= Ly) || (elecZ_tracks[i] <= 0.0) || (elecZ_tracks[i] >= Lz)) {
+	if ((elecX_tracks[i] <= 0.0-bufferLength) || (elecX_tracks[i] >= Lx+bufferLength) || (elecY_tracks[i] <= 0.0-bufferLength) || (elecY_tracks[i] >= Ly+bufferLength) || (elecZ_tracks[i] <= 0.0-bufferLength) || (elecZ_tracks[i] >= Lz+bufferLength)) {
           numBadPoints_start++;
 	  continue;
 	}
@@ -132,7 +159,7 @@ void studyResults2()
 
       Int_t numBadPoints_end = 0;
       for (int i = *nElec_tracks-1; i > *nElec_tracks-1-numTrackSegPoints; i--) {
-        if ((elecX_tracks[i] <= 0.0) || (elecX_tracks[i] >= Lx) || (elecY_tracks[i] <= 0.0) || (elecY_tracks[i] >= Ly) || (elecZ_tracks[i] <= 0.0) || (elecZ_tracks[i] >= Lz)) {
+        if ((elecX_tracks[i] <= 0.0-bufferLength) || (elecX_tracks[i] >= Lx+bufferLength) || (elecY_tracks[i] <= 0.0-bufferLength) || (elecY_tracks[i] >= Ly+bufferLength) || (elecZ_tracks[i] <= 0.0-bufferLength) || (elecZ_tracks[i] >= Lz+bufferLength)) {
           numBadPoints_end++;
 	  continue;
 	}
@@ -167,6 +194,18 @@ void studyResults2()
 	  continue;
 	}
 
+	/*
+	cout << counter << " " << i << "   ";
+	cout << corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)] << " " 
+	     << corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)] << " "
+             << corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)] << " " 
+	     << corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)] << " "
+	     << corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)] << " " 
+	     << corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)] << " "
+             << corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)] << " " 
+	     << corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)] << endl;
+	*/
+	  
 	Point tempPoint;
         tempPoint.x = elecX_tracks[i] + TrilinInterp(elecX_tracks[i],elecY_tracks[i],elecZ_tracks[i],corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)*(Lx/numDivisions_x),TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)*(Lx/numDivisions_x),TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)*(Ly/numDivisions_y),TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)*(Ly/numDivisions_y),TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)*(Lz/numDivisions_z),TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)*(Lz/numDivisions_z));
         tempPoint.y = elecY_tracks[i] + TrilinInterp(elecX_tracks[i],elecY_tracks[i],elecZ_tracks[i],corr_Dy[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)*(Lx/numDivisions_x),TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)*(Lx/numDivisions_x),TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)*(Ly/numDivisions_y),TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)*(Ly/numDivisions_y),TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)*(Lz/numDivisions_z),TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)*(Lz/numDivisions_z));
@@ -183,6 +222,18 @@ void studyResults2()
 	  continue;
 	}
 
+	/*
+	cout << counter << " " << i << "   ";
+	cout << corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)] << " " 
+	     << corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)] << " "
+             << corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)] << " " 
+	     << corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)] << " "
+	     << corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)] << " " 
+	     << corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)] << " "
+             << corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)] << " " 
+	     << corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)] << endl;
+	*/
+	
 	Point tempPoint;
         tempPoint.x = elecX_tracks[i] + TrilinInterp(elecX_tracks[i],elecY_tracks[i],elecZ_tracks[i],corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dx[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)*(Lx/numDivisions_x),TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)*(Lx/numDivisions_x),TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)*(Ly/numDivisions_y),TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)*(Ly/numDivisions_y),TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)*(Lz/numDivisions_z),TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)*(Lz/numDivisions_z));
         tempPoint.y = elecY_tracks[i] + TrilinInterp(elecX_tracks[i],elecY_tracks[i],elecZ_tracks[i],corr_Dy[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)],corr_Dy[(Int_t)TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)][(Int_t)TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)][(Int_t)TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)],TMath::Floor(elecX_tracks[i]*numDivisions_x/Lx)*(Lx/numDivisions_x),TMath::Ceil(elecX_tracks[i]*numDivisions_x/Lx)*(Lx/numDivisions_x),TMath::Floor(elecY_tracks[i]*numDivisions_y/Ly)*(Ly/numDivisions_y),TMath::Ceil(elecY_tracks[i]*numDivisions_y/Ly)*(Ly/numDivisions_y),TMath::Floor(elecZ_tracks[i]*numDivisions_z/Lz)*(Lz/numDivisions_z),TMath::Ceil(elecZ_tracks[i]*numDivisions_z/Lz)*(Lz/numDivisions_z));
@@ -200,6 +251,8 @@ void studyResults2()
       Double_t endMagCorr = sqrt(pow(results_end_corr.eVecs[0](0),2) + pow(results_end_corr.eVecs[0](1),2) + pow(results_end_corr.eVecs[0](2),2));
 
       Double_t dThetaCorr = TMath::ACos(dotProdCorr/(startMagCorr*endMagCorr));
+
+      //cout << "    ANGLE:  " << min(180.0*dThetaCorr/3.14159265,180.0-(180.0*dThetaCorr/3.14159265));
 
       corrAngHist->Fill(min(180.0*dThetaCorr/3.14159265,180.0-(180.0*dThetaCorr/3.14159265)));
     }

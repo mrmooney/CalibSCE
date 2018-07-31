@@ -54,9 +54,9 @@ const Char_t *inputFileLaser = "data/laserDataSCE_NEW.root";
 //const Char_t *inputFileCosmic = "data/mcsample_small_combined.root";
 //const Char_t *inputFileCosmic = "data/oldMCsample_50000events.root";
 //const Char_t *inputFileCosmic = "data/newMCsample_2Mevents.root";
-const Char_t *inputFileCosmic = "data/MC_Cosmics.root";
+//const Char_t *inputFileCosmic = "data/MC_Cosmics.root";
 //const Char_t *inputFileCosmic = "data/MC_Cosmics_NoSCE.root";
-//const Char_t *inputFileCosmic = "data/Data_Run1_EXTBNB.root";
+const Char_t *inputFileCosmic = "data/Data_Run1_EXTBNB.root";
 //const Char_t *inputFileCosmic = "data/first_set_of_EXTBNB_production.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP.root";
 //const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP_withMCS.root";
@@ -74,20 +74,28 @@ const Double_t ScaleFactorX = Lx/2.56;
 const Double_t ScaleFactorY = Ly/2.33;
 const Double_t ScaleFactorZ = Lz/10.37;
 
-const Double_t TrueAnode = Lx;
-const Double_t TrueCathode = Lx*(2.56-2.548)/2.56;
-//const Double_t TrueCathode = 0.0; // DATA
-const Double_t TrueTop = Ly*(1.174+1.165)/(2.33);
-const Double_t TrueBottom = Ly*(-1.154+1.165)/(2.33);
-const Double_t TrueUpstream = Lz*(0.001)/(10.37);
-const Double_t TrueDownstream = Lz*(10.369)/(10.37);
-const Double_t ShiftedAnode = Lx*(2.56-0.0006)/2.56;
-//const Double_t ShiftedAnode = Lx*(2.56-(-0.0056))/2.56; // DATA
-const Double_t ShiftedCathode = Lx*(2.56-2.5524)/2.56;
-//const Double_t ShiftedCathode = Lx*(2.56-2.5818)/2.56; // DATA
-const Double_t OffsetCathode = 0.004;
+//const Double_t VelRatio = 1.0;
+//const Double_t TrueAnode = Lx;
+//const Double_t TrueCathode = Lx*(2.56-2.548)/2.56;
+//const Double_t TrueTop = Ly*(1.174+1.165)/(2.33);
+//const Double_t TrueBottom = Ly*(-1.154+1.165)/(2.33);
+//const Double_t TrueUpstream = Lz*(0.004)/(10.37);
+//const Double_t TrueDownstream = Lz*(10.368)/(10.37);
+//const Double_t ShiftedAnode = Lx*(2.56-0.0006)/2.56;
+//const Double_t ShiftedCathode = Lx*(2.56-2.5524)/2.56;
+//const Double_t OffsetCathodeReco = 0.004*Lx/2.56;
+const Double_t VelRatio = 0.992; // DATA
+const Double_t TrueAnode = Lx; // DATA
+const Double_t TrueCathode = 0.0; // DATA
+const Double_t TrueTop = Ly*(1.171+1.165)/(2.33); // DATA
+const Double_t TrueBottom = Ly*(-1.151+1.165)/(2.33); // DATA
+const Double_t TrueUpstream = Lz*(0.002)/(10.37); // DATA
+const Double_t TrueDownstream = Lz*(10.366)/(10.37); // DATA
+const Double_t ShiftedAnode = Lx*(2.56-(-0.0056))/2.56; // DATA
+const Double_t ShiftedCathode = Lx*(2.56-2.5818*VelRatio)/2.56; // DATA
+const Double_t OffsetCathodeReco = 0.004*Lx/2.56; // DATA
 
-const Bool_t isMC = true;
+const Bool_t isMC = false;
 const Bool_t isSCEon = true;
 
 const Double_t relAngleCut = 20.0;
@@ -166,22 +174,6 @@ TH2F *faceCalibHistDownstreamDeltaZ;
 TH2F *faceCalibHistCathodeDeltaX;
 TH2F *faceCalibHistCathodeDeltaY;
 TH2F *faceCalibHistCathodeDeltaZ;
-
-TH2F *faceSimHistTopDeltaX;
-TH2F *faceSimHistTopDeltaY;
-TH2F *faceSimHistTopDeltaZ;
-
-TH2F *faceSimHistBottomDeltaX;
-TH2F *faceSimHistBottomDeltaY;
-TH2F *faceSimHistBottomDeltaZ;
-
-TH2F *faceSimHistUpstreamDeltaX;
-TH2F *faceSimHistUpstreamDeltaY;
-TH2F *faceSimHistUpstreamDeltaZ;
-
-TH2F *faceSimHistDownstreamDeltaX;
-TH2F *faceSimHistDownstreamDeltaY;
-TH2F *faceSimHistDownstreamDeltaZ;
 
 TH2F *faceSimHistCathodeDeltaX;
 TH2F *faceSimHistCathodeDeltaY;
@@ -271,7 +263,7 @@ vector<Double_t> getTruthOffsets(Double_t xVal, Double_t yVal, Double_t zVal);
 void loadTruthFwdMap();
 Double_t getTruthFwdOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp);
 vector<Double_t> getTruthFwdOffsets(Double_t xVal, Double_t yVal, Double_t zVal);
-Double_t findCathodeOffset(Double_t yVal, Double_t zVal);
+vector<Double_t> findCathodeOffsets(Double_t yVal, Double_t zVal);
 void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, Int_t numTrackSegPoints, Double_t minWeight, Int_t minEntries, Int_t minMaxBin, Int_t saveInfo);
 PCAResults DoPCA(const PointCloud &points);
 Double_t findHistMedian(TH1F *hist);
@@ -279,6 +271,7 @@ void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum);
 void extrapolate(TH2F *interpHist, Int_t edgeXbins, Int_t edgeYbins, Int_t faceNum);
 Double_t getBulkCorr(Double_t xVal, Double_t yVal, Double_t zVal, Int_t comp);
 Double_t getFaceCorr(Double_t xVal, Double_t yVal, Double_t zVal, Int_t faceNum, Int_t comp);
+Double_t getCathodeCorr(Double_t yVal, Double_t zVal, Int_t comp);
 
 Int_t main(Int_t argc, Char_t** argv)
 {
@@ -376,7 +369,28 @@ Int_t main(Int_t argc, Char_t** argv)
   faceCalibHistCathodeDeltaX = new TH2F("faceCalibHistCathodeDeltaX","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
   faceCalibHistCathodeDeltaY = new TH2F("faceCalibHistCathodeDeltaY","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
   faceCalibHistCathodeDeltaZ = new TH2F("faceCalibHistCathodeDeltaZ","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
+
+  outputFile->cd();
+  faceSimHistCathodeDeltaX = new TH2F("faceSimHistCathodeDeltaX","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
+  faceSimHistCathodeDeltaY = new TH2F("faceSimHistCathodeDeltaY","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
+  faceSimHistCathodeDeltaZ = new TH2F("faceSimHistCathodeDeltaZ","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
+  Double_t y_reco = -1.0*Ly/nCalibDivisions_y;    
+  for(Int_t y = 0; y <= nCalibDivisions_y; y++)
+  {
+    y_reco += Ly/nCalibDivisions_y;
+    Double_t z_reco = -1.0*Lz/nCalibDivisions_z;
   
+    for(Int_t z = 0; z <= nCalibDivisions_z; z++)
+    {
+      z_reco += Lz/nCalibDivisions_z;
+
+      vector<Double_t> offsets = findCathodeOffsets(y_reco,z_reco);
+      faceSimHistCathodeDeltaX->SetBinContent(z+1,y+1,offsets.at(0));
+      faceSimHistCathodeDeltaY->SetBinContent(z+1,y+1,offsets.at(1));
+      faceSimHistCathodeDeltaZ->SetBinContent(z+1,y+1,offsets.at(2));
+    }
+  }
+
   //vector<trackInfo> laserTracks = getTrackSet(1);
   //vector<trackInfo> cosmicTracks = getTrackSet(2);
 
@@ -390,25 +404,21 @@ Int_t main(Int_t argc, Char_t** argv)
   vector<trackInfo> cosmicTracks;
   
   //////////getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
-  //getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,10000000.0,10000000.0);
-  //doCalibration(laserTracks,cosmicTracks,0.01,3,1,0);
-  //
-  ////getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0);
-  ////doCalibFaces(cosmicTracks,50,15,0.25,4,5,0);
-  //
-  ////getLArSoftTrackSet(cosmicTracks,2,1,10000,100000000.0,10000000.0,0.0);
-  ////doCalibration(laserTracks,cosmicTracks,0.01,3,1,0);
-  //
-  //getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0);
-  //doCalibFaces(cosmicTracks,50,15,0.25,4,5,1);
-  //
-  //getLArSoftTrackSet(cosmicTracks,2,3,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
-  //doCalibration(laserTracks,cosmicTracks,0.01,3,1,1);
+  getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,10000000.0,10000000.0);
+  doCalibration(laserTracks,cosmicTracks,0.01,3,1,0);
 
-  getLArSoftTrackSet(cosmicTracks,2,4,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
+  getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0);
+  ////getLArSoftTrackSet(cosmicTracks,2,4,1000000,0.0,0.0,0.0);
+  doCalibFaces(cosmicTracks,50,15,0.25,4,5,1);
+
+  getLArSoftTrackSet(cosmicTracks,2,4,30000,minTrackMCS_anode,minTrackMCS_cathode,100000000.0);
   doCalibration(laserTracks,cosmicTracks,0.01,3,1,1);
+
   
+  //getLArSoftTrackSet(cosmicTracks,2,4,1000000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
+  ////getLArSoftTrackSet(cosmicTracks,2,4,1000000,0.0,0.0,0.0);
   //saveTrackInfo(cosmicTracks);
+
   
   timer.Stop();
   cout << "Calibration Time:  " << timer.CpuTime() << " sec." << endl;
@@ -422,7 +432,7 @@ Int_t main(Int_t argc, Char_t** argv)
 Double_t doCoordTransformX(const Double_t inputX)
 {
   Double_t outputX;
-  outputX = Lx - (Lx/2.56)*inputX/100.0;
+  outputX = Lx - (Lx/2.56)*inputX*VelRatio/100.0;
 
   return outputX;
 }
@@ -446,7 +456,7 @@ Double_t doCoordTransformZ(const Double_t inputZ)
 Double_t doInvCoordTransformX(const Double_t inputX)
 {
   Double_t outputX;
-  outputX = 100.0*(2.56/Lx)*(Lx - inputX);
+  outputX = 100.0*(2.56/Lx)*(Lx - inputX)/VelRatio;
 
   return outputX;
 }
@@ -1080,13 +1090,32 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
       
       // Correct track end point furthest from cathode/anode
       Double_t cathodeOffset = 0.0;
-      if((calibMode == 2) || (calibMode == 4)) {
+      if(calibMode == 2) {
         if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
           if (xS < xE) {
-            cathodeOffset = findCathodeOffset(yS,zS);
+            vector<Double_t> offsets = findCathodeOffsets(yS,zS);
+	    cathodeOffset = offsets.at(0);
           }
           else {
-            cathodeOffset = findCathodeOffset(yE,zE);
+            vector<Double_t> offsets = findCathodeOffsets(yE,zE);
+            cathodeOffset = offsets.at(0);
+          }
+        
+          xS += SCEfactor*(TrueCathode-ShiftedCathode) + SCEfactor*cathodeOffset;
+          xE += SCEfactor*(TrueCathode-ShiftedCathode) + SCEfactor*cathodeOffset;
+        }
+        else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
+          xS += (TrueAnode-ShiftedAnode);
+          xE += (TrueAnode-ShiftedAnode);
+        }
+      }
+      else if(calibMode == 4) {
+        if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
+          if (xS < xE) {
+            cathodeOffset = getCathodeCorr(yS,zS,1);
+          }
+          else {
+            cathodeOffset = getCathodeCorr(yE,zE,1);
           }
         
           xS += SCEfactor*(TrueCathode-ShiftedCathode) + SCEfactor*cathodeOffset;
@@ -1317,8 +1346,8 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
       else if(calibMode == 4) {
         if(xS < maxXdist) {
           x0 = TrueCathode;
-          y0 = yS + SCEfactor*StruthOffsets.at(1);
-          z0 = zS + SCEfactor*StruthOffsets.at(2);
+          y0 = yS + -1.0*SCEfactor*getCathodeCorr(yS,zS,2);
+          z0 = zS + -1.0*SCEfactor*getCathodeCorr(yS,zS,3);
         }
         else if (xS > (Lx - maxXdist)) {
           x0 = TrueAnode;
@@ -1352,8 +1381,8 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
         
         if(xE < maxXdist) {
           x1 = TrueCathode;
-          y1 = yE + SCEfactor*EtruthOffsets.at(1);
-          z1 = zE + SCEfactor*EtruthOffsets.at(2);
+          y1 = yE + -1.0*SCEfactor*getCathodeCorr(yE,zE,2);
+          z1 = zE + -1.0*SCEfactor*getCathodeCorr(yE,zE,3);
         }
         else if (xE > (Lx - maxXdist)) {
           x1 = TrueAnode;
@@ -1413,10 +1442,10 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
 
       //if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
       //  if (x0 < x1) {
-      //	  cathodeOffset = findCathodeOffset(y0,z0);
+      //	  cathodeOffset = findCathodeOffsets(y0,z0);
       //	}
       //	else {
-      //	  cathodeOffset = findCathodeOffset(y1,z1);
+      //	  cathodeOffset = findCathodeOffsets(y1,z1);
       //  }
       //}
 
@@ -1451,10 +1480,10 @@ void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibM
 	else if (calibMode == 3) {
           if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
 	    if(xS < xE) {
-	      electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)-getFaceCorr(xS,yS,zS,4,1)-OffsetCathode; // not quite correct (improper inverse operation)
+	      electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)-getFaceCorr(xS,yS,zS,4,1)-OffsetCathodeReco; // not quite correct (improper inverse operation)
 	    }
 	    else {
-	      electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)-getFaceCorr(xE,yE,zE,4,1)-OffsetCathode; // not quite correct (improper inverse operation)
+	      electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)-getFaceCorr(xE,yE,zE,4,1)-OffsetCathodeReco; // not quite correct (improper inverse operation)
 	    }
 	  }
           else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
@@ -2318,6 +2347,7 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
   Double_t x_reco, y_reco, z_reco;
   Double_t Dx, Dy, Dz;
   Int_t elecFate;
+  Int_t numEntries;
 
   TTree *T_calib = new TTree("SpaCEtree_calib","SpaCEtree_calib");
   T_calib->Branch("x_true",&x_true,"data_calib/D");
@@ -2330,6 +2360,7 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
   T_calib->Branch("Dy",&Dy,"data_calib/D");
   T_calib->Branch("Dz",&Dz,"data_calib/D");
   T_calib->Branch("elecFate",&elecFate,"data_calib/I");
+  T_calib->Branch("numEntries",&numEntries,"data_calib/I");
   if(saveInfo == 1) {
     T_calib->SetDirectory(outputFile);
   }
@@ -2353,10 +2384,10 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
       {
         z_reco += Lz/nCalibDivisions_z;
 
-	Int_t length = calibWeight[x][y][z].size();
+	numEntries = calibWeight[x][y][z].size();
 	Double_t sumWeights = 0.0;
 	
-	for(Int_t k = 0; k < length; k++)
+	for(Int_t k = 0; k < numEntries; k++)
 	{
 	  sumWeights += (calibWeight[x][y][z])[k];
 	  
@@ -2366,13 +2397,13 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
 	  }
 	}
 	
-        if((length > 0) && (sumWeights > 0.0))
+        if((numEntries > 0) && (sumWeights > 0.0))
 	{
           elecFate = 1;
 
-          Dx = TMath::Median(length,&(calibDeltaX[x][y][z])[0],&(calibWeight[x][y][z])[0]);
-          Dy = TMath::Median(length,&(calibDeltaY[x][y][z])[0],&(calibWeight[x][y][z])[0]);
-          Dz = TMath::Median(length,&(calibDeltaZ[x][y][z])[0],&(calibWeight[x][y][z])[0]);
+          Dx = TMath::Median(numEntries,&(calibDeltaX[x][y][z])[0],&(calibWeight[x][y][z])[0]);
+          Dy = TMath::Median(numEntries,&(calibDeltaY[x][y][z])[0],&(calibWeight[x][y][z])[0]);
+          Dz = TMath::Median(numEntries,&(calibDeltaZ[x][y][z])[0],&(calibWeight[x][y][z])[0]);
          
           x_true = x_reco+Dx;
           y_true = y_reco+Dy;
@@ -2869,7 +2900,7 @@ vector<Double_t> getTruthFwdOffsets(Double_t xVal, Double_t yVal, Double_t zVal)
   return fwdOffsets;
 }
 
-Double_t findCathodeOffset(Double_t yVal, Double_t zVal)
+vector<Double_t> findCathodeOffsets(Double_t yVal, Double_t zVal)
 {
   Double_t minMetric = 100000000.0;
   
@@ -2881,7 +2912,7 @@ Double_t findCathodeOffset(Double_t yVal, Double_t zVal)
       Double_t yValNew = (j/50.0)*Ly;
       Double_t zValNew = (k/50.0)*Lz;
     	
-      vector<Double_t> fwdOffsets = getTruthFwdOffsets(TrueCathode,yValNew,zValNew);
+      vector<Double_t> fwdOffsets = getTruthFwdOffsets(TrueCathode+OffsetCathodeReco/2.0,yValNew,zValNew);
     	
       Double_t metric = sqrt(pow(yValNew+fwdOffsets.at(1)-yVal,2.0)+pow(zValNew+fwdOffsets.at(2)-zVal,2.0));
 
@@ -2895,13 +2926,13 @@ Double_t findCathodeOffset(Double_t yVal, Double_t zVal)
 
   Double_t yValNewBest2;
   Double_t zValNewBest2;
-  for(int j = -10; j <= 10; j++)
-    for(int k = -10; k <= 10; k++)
+  for(int j = -20; j <= 20; j++)
+    for(int k = -20; k <= 20; k++)
     {
-      Double_t yValNew = yValNewBest + (j/1000.0)*Ly;
-      Double_t zValNew = zValNewBest + (k/1000.0)*Lz;
+      Double_t yValNew = yValNewBest + (j/2000.0)*Ly;
+      Double_t zValNew = zValNewBest + (k/2000.0)*Lz;
     	
-      vector<Double_t> fwdOffsets = getTruthFwdOffsets(TrueCathode,yValNew,zValNew);
+      vector<Double_t> fwdOffsets = getTruthFwdOffsets(TrueCathode+OffsetCathodeReco/2.0,yValNew,zValNew);
     	
       Double_t metric = sqrt(pow(yValNew+fwdOffsets.at(1)-yVal,2.0)+pow(zValNew+fwdOffsets.at(2)-zVal,2.0));
 
@@ -2913,9 +2944,9 @@ Double_t findCathodeOffset(Double_t yVal, Double_t zVal)
       }
     }
 
-  vector<Double_t> finalFwdOffsets = getTruthFwdOffsets(TrueCathode,yValNewBest2,zValNewBest2);
+  vector<Double_t> finalFwdOffsets = getTruthFwdOffsets(TrueCathode+OffsetCathodeReco/2.0,yValNewBest2,zValNewBest2);
 
-  return finalFwdOffsets.at(0);
+  return finalFwdOffsets;
 }
 
 void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, Int_t numTrackSegPoints, Double_t minWeight, Int_t minEntries, Int_t minMaxBin, Int_t saveInfo)
@@ -4096,16 +4127,19 @@ Double_t findHistMedian(TH1F *hist)
 
 void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
 {
-  const Int_t edgeXbins = 1;
-  const Int_t edgeYbins = 1;
-  const Int_t medianFiltXbins = 1;
-  const Int_t medianFiltYbins = 1;
-  const Double_t gaussFilterWidth = 0.10;
+  const Int_t edgeXbins = 1;//2
+  const Int_t edgeYbins = 1;//2
+  const Int_t medianFiltXbins = 1;//0
+  const Int_t medianFiltYbins = 1;//0
+  //const Double_t gaussFilterWidth = 0.10;
+  const Double_t gaussFilterWidth = 0.20;
+  //const Double_t gaussFilterWidth = 100000000.0;
 
   TH2F *tempHist;
   if((faceNum == 0) || (faceNum == 1))
   {
     tempHist = new TH2F("tempHist","",nCalibDivisions_z+1,0,nCalibDivisions_z+1,nCalibDivisions_x+1,0,nCalibDivisions_x+1);
+    tempHist->SetDirectory(0);
     for(Int_t x = 0; x <= nCalibDivisions_x; x++)
     {
       for(Int_t z = 0; z <= nCalibDivisions_z; z++)
@@ -4117,6 +4151,7 @@ void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
   else if((faceNum == 2) || (faceNum == 3))
   {
     tempHist = new TH2F("tempHist","",nCalibDivisions_x+1,0,nCalibDivisions_x+1,nCalibDivisions_y+1,0,nCalibDivisions_y+1);
+    tempHist->SetDirectory(0);
     for(Int_t x = 0; x <= nCalibDivisions_x; x++)
     {
       for(Int_t y = 0; y <= nCalibDivisions_y; y++)
@@ -4128,6 +4163,7 @@ void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
   else
   {
     tempHist = new TH2F("tempHist","",nCalibDivisions_z+1,0,nCalibDivisions_z+1,nCalibDivisions_y+1,0,nCalibDivisions_y+1);
+    tempHist->SetDirectory(0);
     for(Int_t y = 0; y <= nCalibDivisions_y; y++)
     {
       for(Int_t z = 0; z <= nCalibDivisions_z; z++)
@@ -4141,6 +4177,7 @@ void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
   Int_t numYbins = tempHist->GetNbinsY()-2*edgeYbins;
   
   TH2F *origHist = new TH2F("origHist","",numXbins,0,numXbins,numYbins,0,numYbins);
+  origHist->SetDirectory(0);
   for(Int_t i = 0; i < numXbins; i++)
   {
     for(Int_t j = 0; j < numYbins; j++)
@@ -4152,6 +4189,7 @@ void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
   Int_t numFiltXbins = origHist->GetNbinsX()-2*medianFiltXbins;
   Int_t numFiltYbins = origHist->GetNbinsY()-2*medianFiltYbins;
   TH2F *medianHist = new TH2F("medianHist","",numFiltXbins,0,numFiltXbins,numFiltYbins,0,numFiltYbins);
+  medianHist->SetDirectory(0);
   for(Int_t i = medianFiltXbins; i < numXbins-medianFiltXbins; i++)
   {
     for(Int_t j = medianFiltYbins; j < numYbins-medianFiltYbins; j++)
@@ -4189,15 +4227,19 @@ void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
   }
 
   TH2F *filledHist = new TH2F("filledHist","",numFiltXbins,0,numFiltXbins,numFiltYbins,0,numFiltYbins);
+  filledHist->SetDirectory(0);
   TGraph2D *interpGraph = new TGraph2D();
+  interpGraph->SetDirectory(0);
   Int_t pointNum = 0;
   for(Int_t i = 0; i < numFiltXbins; i++)
   {
     for(Int_t j = 0; j < numFiltYbins; j++)
     {
       if(medianHist->GetBinContent(i+1,j+1) > -1000.0)
+      //if(origHist->GetBinContent(i+1,j+1) > -1000.0)
       {
         interpGraph->SetPoint(pointNum,medianHist->GetXaxis()->GetBinCenter(i+1),medianHist->GetYaxis()->GetBinCenter(j+1),medianHist->GetBinContent(i+1,j+1));
+	//interpGraph->SetPoint(pointNum,origHist->GetXaxis()->GetBinCenter(i+1),origHist->GetYaxis()->GetBinCenter(j+1),origHist->GetBinContent(i+1,j+1));
 	pointNum++;
       }
     }
@@ -4211,6 +4253,7 @@ void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
   }
   
   TH2F *expandHist = new TH2F("expandHist","",3*numFiltXbins,0,3*numFiltXbins,3*numFiltYbins,0,3*numFiltYbins);
+  expandHist->SetDirectory(0);
   for(Int_t i = 0; i < 3*numFiltXbins; i++)
   {
     for(Int_t j = 0; j < 3*numFiltYbins; j++)
@@ -4223,6 +4266,7 @@ void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
   for(Int_t j = 0; j < 3*numFiltYbins; j++)
   {
     inputHist[j] = new TH1F(Form("inputHist_%d",j),"",3*numFiltXbins,0,3*numFiltXbins);
+    inputHist[j]->SetDirectory(0);
     
     for(Int_t i = 0; i < 3*numFiltXbins; i++)
     {
@@ -4231,8 +4275,10 @@ void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
   }
 
   TH2F *resultHist = new TH2F("resultHist","",3*numFiltXbins,0,3*numFiltXbins,3*numFiltYbins,0,3*numFiltYbins);
+  resultHist->SetDirectory(0);
   TH2F *cropHist = new TH2F("cropHist","",numFiltXbins,0,numFiltXbins,numFiltYbins,0,numFiltYbins);
-
+  cropHist->SetDirectory(0);
+    
   // Do preliminary setup
   TVirtualFFT::SetTransform(0);
   Int_t numTotalX = 3*numFiltXbins;
@@ -4345,11 +4391,13 @@ void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
 
   // Interpolate to fix boundaries of map
   TH2F *interpHist = new TH2F("interpHist","",tempHist->GetNbinsX(),0,tempHist->GetNbinsX(),tempHist->GetNbinsY(),0,tempHist->GetNbinsY());
+  interpHist->SetDirectory(0);
   for(Int_t i = (edgeXbins+medianFiltXbins); i < numFiltXbins+(edgeXbins+medianFiltXbins); i++)
   {
     for(Int_t j = (edgeYbins+medianFiltYbins); j < numFiltYbins+(edgeYbins+medianFiltYbins); j++)
     {
       interpHist->SetBinContent(i+1,j+1,cropHist->GetBinContent(i+1-(edgeXbins+medianFiltXbins),j+1-(edgeYbins+medianFiltYbins)));
+      //interpHist->SetBinContent(i+1,j+1,origHist->GetBinContent(i+1-(edgeXbins+medianFiltXbins),j+1-(edgeYbins+medianFiltYbins)));
     }
   }
 
@@ -4656,5 +4704,51 @@ Double_t getBulkCorr(Double_t xVal, Double_t yVal, Double_t zVal, Int_t comp)
     offset = bulkCalibHistDeltaZ->Interpolate(xVal,yVal,zVal);
   }
   
+  return offset;
+}
+
+Double_t getCathodeCorr(Double_t yVal, Double_t zVal, Int_t comp)
+{
+  Double_t offset = 0.0;
+  
+  if (yVal < 0.00001) {
+    yVal = 0.00001;
+  }
+  if (yVal > Ly-0.00001) {
+    yVal = Ly-0.00001;
+  }
+
+  if (zVal < 0.00001) {
+    zVal = 0.00001;
+  }
+  if (zVal > Lz-0.00001) {
+    zVal = Lz-0.00001;
+  }
+
+  Double_t corr_top = getFaceCorr(TrueCathode+OffsetCathodeReco/2.0,yVal,zVal,0,2);
+  Double_t corr_bottom = getFaceCorr(TrueCathode+OffsetCathodeReco/2.0,yVal,zVal,1,2);
+  Double_t SF_top = fabs(corr_top/faceSimHistCathodeDeltaY->Interpolate(zVal,TrueTop-corr_top));
+  Double_t SF_bottom = fabs(corr_bottom/faceSimHistCathodeDeltaY->Interpolate(zVal,TrueBottom-corr_bottom));
+
+  Double_t frac = (yVal-TrueBottom)/(TrueTop-TrueBottom);
+  if(frac > 1.0) {
+    frac = 1.0;
+  }
+  else if(frac < 0.0) {
+    frac = 0.0;
+  }
+
+  Double_t SF = frac*SF_top + (1.0-frac)*SF_bottom;
+  
+  if (comp == 1) {
+    offset = SF*faceSimHistCathodeDeltaX->Interpolate(zVal,yVal);
+  }
+  else if (comp == 2) {
+    offset = SF*faceSimHistCathodeDeltaY->Interpolate(zVal,yVal);
+  }
+  else if (comp == 3) {
+    offset = SF*faceSimHistCathodeDeltaZ->Interpolate(zVal,yVal);
+  }
+
   return offset;
 }
