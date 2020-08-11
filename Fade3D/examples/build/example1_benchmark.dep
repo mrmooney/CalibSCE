@@ -1,0 +1,10 @@
+build/example1_benchmark.dep example1_benchmark.o: example1_benchmark.cpp \
+ ../include_fade3d/Fade_3D.h ../include_fade3d/definitions.h \
+ ../include_fade3d/Visualizer3.h ../include_fade3d/Ball3.h \
+ ../include_fade3d/Point3.h ../include_fade3d/Triangle3.h \
+ ../include_fade3d/Bbox3.h ../include_fade3d/Tet3.h \
+ ../include_fade3d/Edge3.h ../include_fade3d/Facet3.h \
+ ../include_fade3d/textTools.h ../include_fade3d/Performance.h \
+ ../include_fade3d/Vector3.h ../include_fade3d/common.h \
+ ../include_fade3d/testDataGenerators.h ../include_fade3d/tools.h \
+ ../include_fade3d/freeFunctions.h ../include_fade3d/License.h

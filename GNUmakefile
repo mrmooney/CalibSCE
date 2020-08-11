@@ -1,7 +1,8 @@
-CXXFLAGS += -I. $(shell root-config --cflags) -g
-LDFLAGS += $(shell root-config --libs) -lPhysics -lMatrix -g
+CXX      := g++
+CXXFLAGS += -I. $(shell root-config --cflags) -g -I./Fade3D/include_fade3d -L./Fade3D/lib_ubuntu17.04_x86_64
+LDFLAGS += $(shell root-config --libs) -lPhysics -lMatrix -g -lfade3d -Wl,-rpath=./Fade3D/lib_ubuntu17.04_x86_64
 
-PROGRAMS = CalibSCE
+PROGRAMS = CalibSCE MakeSmoothHists MakeSystVar
 
 all:		clean $(PROGRAMS)
 

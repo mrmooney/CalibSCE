@@ -37,80 +37,54 @@
 #include <TGraph2D.h>
 
 #include "normVec.hpp"
-#include "SpaceChargeMicroBooNE.h"
-#include "spline.h"
-
-#include "/usr/include/eigen3/Eigen/Dense"
 
 using namespace std;
 
-//const Char_t *inputFileLaser = "data/laserDataSCE.root";
-const Char_t *inputFileLaser = "data/laserDataSCE_NEW.root";
-//const Char_t *inputFileLaser = "data/laserScan_data.root";
-//const Char_t *inputFileLaser = "data/laserScan_MC.root";
-//const Char_t *inputFileCosmic = "data/cosmicDataSCE_small.root";
-//const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW.root";
-//const Char_t *inputFileCosmic = "data/cosmicDataSCE_small_NEW_withMCS.root";
-//const Char_t *inputFileCosmic = "data/mcsample_small_combined.root";
-//const Char_t *inputFileCosmic = "data/oldMCsample_50000events.root";
-//const Char_t *inputFileCosmic = "data/newMCsample_2Mevents.root";
-//const Char_t *inputFileCosmic = "data/MC_Cosmics.root";
-//const Char_t *inputFileCosmic = "data/MC_Cosmics_NoSCE.root";
-const Char_t *inputFileCosmic = "data/Data_Run1_EXTBNB.root";
-//const Char_t *inputFileCosmic = "data/first_set_of_EXTBNB_production.root";
-//const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP.root";
-//const Char_t *inputFileCosmic = "data/cosmicDataSCE_ProtoDUNESP_withMCS.root";
+const Char_t *inputFileName = "data/MC_Cosmics.root"; // NEED TO OBTAIN INPUT FILE FROM FNAL MACHINES FIRST
+//const Char_t *inputFileName = "data/Data_Run1_EXTBNB.root"; // NEED TO OBTAIN INPUT FILE FROM FNAL MACHINES FIRST
+
+const Char_t *simInterpFileName = "data/output_siminterp_MicroBooNE_4p5_gap.root";
+
+const Bool_t isMC = true;
+const Bool_t isSCEon = true;
+const Int_t numCalibTracks = 200000;
+
+Double_t VelRatio;
+Double_t TrueAnode;
+Double_t TrueCathode;
+Double_t TrueTop;
+Double_t TrueBottom;
+Double_t TrueUpstream;
+Double_t TrueDownstream;
+Double_t ShiftedAnode;
+Double_t ShiftedCathode;
+Double_t OffsetCathodeReco;
 
 TFile* outputFile = new TFile("output.root","RECREATE");
 
 const Double_t Lx = 2.5;
 const Double_t Ly = 2.5;
 const Double_t Lz = 10.0;
-//const Double_t Lx = 3.6;
-//const Double_t Ly = 6.0;
-//const Double_t Lz = 7.2;
 
 const Double_t ScaleFactorX = Lx/2.56;
 const Double_t ScaleFactorY = Ly/2.33;
 const Double_t ScaleFactorZ = Lz/10.37;
 
-//const Double_t VelRatio = 1.0;
-//const Double_t TrueAnode = Lx;
-//const Double_t TrueCathode = Lx*(2.56-2.548)/2.56;
-//const Double_t TrueTop = Ly*(1.174+1.165)/(2.33);
-//const Double_t TrueBottom = Ly*(-1.154+1.165)/(2.33);
-//const Double_t TrueUpstream = Lz*(0.004)/(10.37);
-//const Double_t TrueDownstream = Lz*(10.368)/(10.37);
-//const Double_t ShiftedAnode = Lx*(2.56-0.0006)/2.56;
-//const Double_t ShiftedCathode = Lx*(2.56-2.5524)/2.56;
-//const Double_t OffsetCathodeReco = 0.004*Lx/2.56;
-const Double_t VelRatio = 0.992; // DATA
-const Double_t TrueAnode = Lx; // DATA
-const Double_t TrueCathode = 0.0; // DATA
-const Double_t TrueTop = Ly*(1.171+1.165)/(2.33); // DATA
-const Double_t TrueBottom = Ly*(-1.151+1.165)/(2.33); // DATA
-const Double_t TrueUpstream = Lz*(0.002)/(10.37); // DATA
-const Double_t TrueDownstream = Lz*(10.366)/(10.37); // DATA
-const Double_t ShiftedAnode = Lx*(2.56-(-0.0056))/2.56; // DATA
-const Double_t ShiftedCathode = Lx*(2.56-2.5818*VelRatio)/2.56; // DATA
-const Double_t OffsetCathodeReco = 0.004*Lx/2.56; // DATA
-
-const Bool_t isMC = false;
-const Bool_t isSCEon = true;
+const Double_t WF_top = 117.1;
+const Double_t WF_bottom = -115.1;
+const Double_t WF_upstream = 0.2;
+const Double_t WF_downstream = 1036.6;
+const Double_t WF_cathode = 254.4;
 
 const Double_t relAngleCut = 20.0;
 const Double_t maxXdist = 0.05;
 const Double_t maxYdist = 0.20;
-//const Double_t maxYdist = 0.05;
 const Double_t maxZdist = 0.20;
-//const Double_t maxZdist = 0.05;
 
 Int_t minInputTrackNum = 0;
-//Int_t maxInputTrackNum = 1000000000;
 Int_t maxInputTrackNum = 1150000;
 
-Int_t nCalibDivisions = 25; // MICROBOONE
-//Int_t nCalibDivisions = 18; // PROTODUNE-SP
+Int_t nCalibDivisions = 25;
 
 const Double_t piVal = 3.14159265;
 
@@ -123,61 +97,25 @@ vector<Double_t> calibDeltaX[101][101][401];
 vector<Double_t> calibDeltaY[101][101][401];
 vector<Double_t> calibDeltaZ[101][101][401];
 
-Double_t trueDeltaX[101][101][401];
-Double_t trueDeltaY[101][101][401];
-Double_t trueDeltaZ[101][101][401];
+TH3F *ResultDeltaX;
+TH3F *ResultDeltaY;
+TH3F *ResultDeltaZ;
 
-Double_t trueFwdDeltaX[101][101][401];
-Double_t trueFwdDeltaY[101][101][401];
-Double_t trueFwdDeltaZ[101][101][401];
+TH3F *TrueFwdDeltaX;
+TH3F *TrueFwdDeltaY;
+TH3F *TrueFwdDeltaZ;
 
-vector<vector<Double_t> > calibTopDeltaX;
-vector<vector<Double_t> > calibTopDeltaY;
-vector<vector<Double_t> > calibTopDeltaZ;
+TH3F *TrueBkwdDeltaX;
+TH3F *TrueBkwdDeltaY;
+TH3F *TrueBkwdDeltaZ;
 
-vector<vector<Double_t> > calibBottomDeltaX;
-vector<vector<Double_t> > calibBottomDeltaY;
-vector<vector<Double_t> > calibBottomDeltaZ;
+TH3F *RecoFwdDeltaX;
+TH3F *RecoFwdDeltaY;
+TH3F *RecoFwdDeltaZ;
 
-vector<vector<Double_t> > calibDownstreamDeltaX;
-vector<vector<Double_t> > calibDownstreamDeltaY;
-vector<vector<Double_t> > calibDownstreamDeltaZ;
-
-vector<vector<Double_t> > calibUpstreamDeltaX;
-vector<vector<Double_t> > calibUpstreamDeltaY;
-vector<vector<Double_t> > calibUpstreamDeltaZ;
-
-vector<vector<Double_t> > calibCathodeDeltaX;
-vector<vector<Double_t> > calibCathodeDeltaY;
-vector<vector<Double_t> > calibCathodeDeltaZ;
-
-TH3F *bulkCalibHistDeltaX;
-TH3F *bulkCalibHistDeltaY;
-TH3F *bulkCalibHistDeltaZ;
-
-TH2F *faceCalibHistTopDeltaX;
-TH2F *faceCalibHistTopDeltaY;
-TH2F *faceCalibHistTopDeltaZ;
-
-TH2F *faceCalibHistBottomDeltaX;
-TH2F *faceCalibHistBottomDeltaY;
-TH2F *faceCalibHistBottomDeltaZ;
-
-TH2F *faceCalibHistUpstreamDeltaX;
-TH2F *faceCalibHistUpstreamDeltaY;
-TH2F *faceCalibHistUpstreamDeltaZ;
-
-TH2F *faceCalibHistDownstreamDeltaX;
-TH2F *faceCalibHistDownstreamDeltaY;
-TH2F *faceCalibHistDownstreamDeltaZ;
-
-TH2F *faceCalibHistCathodeDeltaX;
-TH2F *faceCalibHistCathodeDeltaY;
-TH2F *faceCalibHistCathodeDeltaZ;
-
-TH2F *faceSimHistCathodeDeltaX;
-TH2F *faceSimHistCathodeDeltaY;
-TH2F *faceSimHistCathodeDeltaZ;
+TH3F *RecoBkwdDeltaX;
+TH3F *RecoBkwdDeltaY;
+TH3F *RecoBkwdDeltaZ;
 
 struct elecInfo
 {
@@ -224,55 +162,20 @@ struct calibTrackInfo
   trackInfo track;
 };
 
-struct Point {
-  float x;
-  float y;
-  float z;
-};
-
-struct PCAResults {
-  TVector3 centroid;
-  pair<TVector3,TVector3> endPoints;
-  float length;
-  TVector3 eVals;
-  vector<TVector3> eVecs;
-};
-
-typedef vector<Point> PointCloud;
-
 Double_t doCoordTransformX(const Double_t inputX);
 Double_t doCoordTransformY(const Double_t inputY);
 Double_t doCoordTransformZ(const Double_t inputZ);
-Double_t doInvCoordTransformX(const Double_t inputX);
-Double_t doInvCoordTransformY(const Double_t inputY);
-Double_t doInvCoordTransformZ(const Double_t inputZ);
 vector<Double_t> getParabolaParameters(const vector<elecInfo> &parabola_points_track);
 vector<Double_t> findClosestPOA(const calibTrackInfo &trackA, const calibTrackInfo &trackB);
 vector<Double_t> findDistortedClosestPOA(const calibTrackInfo &trackA, const calibTrackInfo &trackB);
-void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibMode, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing);
-vector<trackInfo> getTrackSet(Int_t mapType);
+void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing);
 vector<calibTrackInfo> makeCalibTracks(const vector<trackInfo> &tracks);
-void doLaserLaserCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t distScale, Double_t maxDistFactor, Int_t saveInfo);
-void doLaserCosmicCalib(const vector<calibTrackInfo> &laserCalibTracks, const vector<calibTrackInfo> &cosmicCalibTracks, Double_t distScale, Double_t maxDistFactor, Int_t saveInfo);
 void doCosmicCosmicCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t distScale, Double_t maxDistFactor, Int_t saveInfo);
-void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo> &cosmicTracks, Double_t distScale, Double_t maxDistFactor, Int_t numIterations, Int_t saveInfo);
+void doCalibration(const vector<trackInfo> &cosmicTracks, Double_t distScale, Double_t maxDistFactor, Int_t numIterations, Int_t saveInfo);
 void saveTrackInfo(const vector<trackInfo> &tracks);
-void loadTruthMap();
-Double_t getTruthOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp);
-vector<Double_t> getTruthOffsets(Double_t xVal, Double_t yVal, Double_t zVal);
-void loadTruthFwdMap();
-Double_t getTruthFwdOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp);
-vector<Double_t> getTruthFwdOffsets(Double_t xVal, Double_t yVal, Double_t zVal);
-vector<Double_t> findCathodeOffsets(Double_t yVal, Double_t zVal);
-void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, Int_t numTrackSegPoints, Double_t minWeight, Int_t minEntries, Int_t minMaxBin, Int_t saveInfo);
-PCAResults DoPCA(const PointCloud &points);
-Double_t findHistMedian(TH1F *hist);
-void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum);
-void extrapolate(TH2F *interpHist, Int_t edgeXbins, Int_t edgeYbins, Int_t faceNum);
-Double_t getBulkCorr(Double_t xVal, Double_t yVal, Double_t zVal, Int_t comp);
-Double_t getFaceCorr(Double_t xVal, Double_t yVal, Double_t zVal, Int_t faceNum, Int_t comp);
-Double_t getCathodeCorr(Double_t yVal, Double_t zVal, Int_t comp);
-
+void loadMaps();
+Double_t getOffset(Double_t xVal, Double_t yVal, Double_t zVal, Int_t comp, Int_t calibMode);
+  
 Int_t main(Int_t argc, Char_t** argv)
 {
   TStopwatch timer;
@@ -289,6 +192,31 @@ Int_t main(Int_t argc, Char_t** argv)
   nCalibDivisions_y = TMath::Nint((Ly/Lx)*((Double_t)nCalibDivisions));
   nCalibDivisions_z = TMath::Nint((Lz/Lx)*((Double_t)nCalibDivisions));
 
+  if(isMC == true) {
+    VelRatio = 1.0; // MC
+    TrueAnode = Lx; // MC
+    TrueCathode = Lx*(2.56-2.548)/2.56; // MC
+    TrueTop = Ly*(1.174+1.165)/(2.33); // MC
+    TrueBottom = Ly*(-1.154+1.165)/(2.33); // MC
+    TrueUpstream = Lz*(0.004)/(10.37); // MC
+    TrueDownstream = Lz*(10.368)/(10.37); // MC
+    ShiftedAnode = Lx*(2.56-0.0006)/2.56; // MC
+    ShiftedCathode = Lx*(2.56-2.5524)/2.56; // MC
+    OffsetCathodeReco = 0.004*Lx/2.56; // MC
+  }
+  else {
+    VelRatio = 0.992; // DATA
+    TrueAnode = Lx; // DATA
+    TrueCathode = 0.0; // DATA
+    TrueTop = Ly*(1.171+1.165)/(2.33); // DATA
+    TrueBottom = Ly*(-1.151+1.165)/(2.33); // DATA
+    TrueUpstream = Lz*(0.002)/(10.37); // DATA
+    TrueDownstream = Lz*(10.366)/(10.37); // DATA
+    ShiftedAnode = Lx*(2.56-(-0.0056))/2.56; // DATA
+    ShiftedCathode = Lx*(2.56-2.5818*VelRatio)/2.56; // DATA
+    OffsetCathodeReco = 0.004*Lx/2.56; // DATA
+  }
+
   Double_t minTrackMCS_anode;
   Double_t minTrackMCS_cathode;
   Double_t minTrackMCS_crossing;
@@ -303,122 +231,38 @@ Int_t main(Int_t argc, Char_t** argv)
     minTrackMCS_crossing = 0.0;
   }
 
-  loadTruthMap();
-  loadTruthFwdMap();
+  ResultDeltaX = new TH3F("ResultDeltaX","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  ResultDeltaY = new TH3F("ResultDeltaY","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  ResultDeltaZ = new TH3F("ResultDeltaZ","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
 
-  calibTopDeltaX.resize(nCalibDivisions_x+1);
-  calibTopDeltaY.resize(nCalibDivisions_x+1);
-  calibTopDeltaZ.resize(nCalibDivisions_x+1);
-  calibBottomDeltaX.resize(nCalibDivisions_x+1);
-  calibBottomDeltaY.resize(nCalibDivisions_x+1);
-  calibBottomDeltaZ.resize(nCalibDivisions_x+1);
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    calibTopDeltaX[x].resize(nCalibDivisions_z+1);
-    calibTopDeltaY[x].resize(nCalibDivisions_z+1);
-    calibTopDeltaZ[x].resize(nCalibDivisions_z+1);
-    calibBottomDeltaX[x].resize(nCalibDivisions_z+1);
-    calibBottomDeltaY[x].resize(nCalibDivisions_z+1);
-    calibBottomDeltaZ[x].resize(nCalibDivisions_z+1);
-  }
-  calibUpstreamDeltaX.resize(nCalibDivisions_x+1);
-  calibUpstreamDeltaY.resize(nCalibDivisions_x+1);
-  calibUpstreamDeltaZ.resize(nCalibDivisions_x+1);
-  calibDownstreamDeltaX.resize(nCalibDivisions_x+1);
-  calibDownstreamDeltaY.resize(nCalibDivisions_x+1);
-  calibDownstreamDeltaZ.resize(nCalibDivisions_x+1);
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    calibUpstreamDeltaX[x].resize(nCalibDivisions_y+1);
-    calibUpstreamDeltaY[x].resize(nCalibDivisions_y+1);
-    calibUpstreamDeltaZ[x].resize(nCalibDivisions_y+1);
-    calibDownstreamDeltaX[x].resize(nCalibDivisions_y+1);
-    calibDownstreamDeltaY[x].resize(nCalibDivisions_y+1);
-    calibDownstreamDeltaZ[x].resize(nCalibDivisions_y+1);
-  }
-  calibCathodeDeltaX.resize(nCalibDivisions_y+1);
-  calibCathodeDeltaY.resize(nCalibDivisions_y+1);
-  calibCathodeDeltaZ.resize(nCalibDivisions_y+1);
-  for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-  {
-    calibCathodeDeltaX[y].resize(nCalibDivisions_z+1);
-    calibCathodeDeltaY[y].resize(nCalibDivisions_z+1);
-    calibCathodeDeltaZ[y].resize(nCalibDivisions_z+1);
-  }
+  TrueFwdDeltaX = new TH3F("TrueFwdDeltaX","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  TrueFwdDeltaY = new TH3F("TrueFwdDeltaY","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  TrueFwdDeltaZ = new TH3F("TrueFwdDeltaZ","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
 
-  bulkCalibHistDeltaX = new TH3F("bulkCalibHistDeltaX","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
-  bulkCalibHistDeltaY = new TH3F("bulkCalibHistDeltaY","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
-  bulkCalibHistDeltaZ = new TH3F("bulkCalibHistDeltaZ","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  TrueBkwdDeltaX = new TH3F("TrueBkwdDeltaX","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  TrueBkwdDeltaY = new TH3F("TrueBkwdDeltaY","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  TrueBkwdDeltaZ = new TH3F("TrueBkwdDeltaZ","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+
+  RecoFwdDeltaX = new TH3F("RecoFwdDeltaX","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  RecoFwdDeltaY = new TH3F("RecoFwdDeltaY","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  RecoFwdDeltaZ = new TH3F("RecoFwdDeltaZ","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+
+  RecoBkwdDeltaX = new TH3F("RecoBkwdDeltaX","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  RecoBkwdDeltaY = new TH3F("RecoBkwdDeltaY","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+  RecoBkwdDeltaZ = new TH3F("RecoBkwdDeltaZ","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)),nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)));
+
+  loadMaps();
   
-  faceCalibHistTopDeltaX = new TH2F("faceCalibHistTopDeltaX","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)));
-  faceCalibHistTopDeltaY = new TH2F("faceCalibHistTopDeltaY","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)));
-  faceCalibHistTopDeltaZ = new TH2F("faceCalibHistTopDeltaZ","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)));
-  
-  faceCalibHistBottomDeltaX = new TH2F("faceCalibHistBottomDeltaX","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)));
-  faceCalibHistBottomDeltaY = new TH2F("faceCalibHistBottomDeltaY","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)));
-  faceCalibHistBottomDeltaZ = new TH2F("faceCalibHistBottomDeltaZ","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)));
-
-  faceCalibHistUpstreamDeltaX = new TH2F("faceCalibHistUpstreamDeltaX","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-  faceCalibHistUpstreamDeltaY = new TH2F("faceCalibHistUpstreamDeltaY","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-  faceCalibHistUpstreamDeltaZ = new TH2F("faceCalibHistUpstreamDeltaZ","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-
-  faceCalibHistDownstreamDeltaX = new TH2F("faceCalibHistDownstreamDeltaX","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-  faceCalibHistDownstreamDeltaY = new TH2F("faceCalibHistDownstreamDeltaY","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-  faceCalibHistDownstreamDeltaZ = new TH2F("faceCalibHistDownstreamDeltaZ","",nCalibDivisions_x+1,-Lx/(2.0*((Double_t) nCalibDivisions_x)),Lx+Lx/(2.0*((Double_t) nCalibDivisions_x)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-
-  faceCalibHistCathodeDeltaX = new TH2F("faceCalibHistCathodeDeltaX","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-  faceCalibHistCathodeDeltaY = new TH2F("faceCalibHistCathodeDeltaY","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-  faceCalibHistCathodeDeltaZ = new TH2F("faceCalibHistCathodeDeltaZ","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-
   outputFile->cd();
-  faceSimHistCathodeDeltaX = new TH2F("faceSimHistCathodeDeltaX","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-  faceSimHistCathodeDeltaY = new TH2F("faceSimHistCathodeDeltaY","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-  faceSimHistCathodeDeltaZ = new TH2F("faceSimHistCathodeDeltaZ","",nCalibDivisions_z+1,-Lz/(2.0*((Double_t) nCalibDivisions_z)),Lz+Lz/(2.0*((Double_t) nCalibDivisions_z)),nCalibDivisions_y+1,-Ly/(2.0*((Double_t) nCalibDivisions_y)),Ly+Ly/(2.0*((Double_t) nCalibDivisions_y)));
-  Double_t y_reco = -1.0*Ly/nCalibDivisions_y;    
-  for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-  {
-    y_reco += Ly/nCalibDivisions_y;
-    Double_t z_reco = -1.0*Lz/nCalibDivisions_z;
-  
-    for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-    {
-      z_reco += Lz/nCalibDivisions_z;
-
-      vector<Double_t> offsets = findCathodeOffsets(y_reco,z_reco);
-      faceSimHistCathodeDeltaX->SetBinContent(z+1,y+1,offsets.at(0));
-      faceSimHistCathodeDeltaY->SetBinContent(z+1,y+1,offsets.at(1));
-      faceSimHistCathodeDeltaZ->SetBinContent(z+1,y+1,offsets.at(2));
-    }
-  }
-
-  //vector<trackInfo> laserTracks = getTrackSet(1);
-  //vector<trackInfo> cosmicTracks = getTrackSet(2);
 
   //////////////////////////////////////////////
   /// MAIN PART OF CODE (CHANGE THESE THINGS)
   //////////////////////////////////////////////
   
-  vector<trackInfo> laserTracks;
-  getLArSoftTrackSet(laserTracks,1,-1,-1,-1,-1,-1);
-
   vector<trackInfo> cosmicTracks;
   
-  //////////getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
-  getLArSoftTrackSet(cosmicTracks,2,1,10000,minTrackMCS_anode,10000000.0,10000000.0);
-  doCalibration(laserTracks,cosmicTracks,0.01,3,1,0);
-
-  getLArSoftTrackSet(cosmicTracks,2,1,1000000,0.0,0.0,0.0);
-  ////getLArSoftTrackSet(cosmicTracks,2,4,1000000,0.0,0.0,0.0);
-  doCalibFaces(cosmicTracks,50,15,0.25,4,5,1);
-
-  getLArSoftTrackSet(cosmicTracks,2,4,30000,minTrackMCS_anode,minTrackMCS_cathode,100000000.0);
-  doCalibration(laserTracks,cosmicTracks,0.01,3,1,1);
-
-  
-  //getLArSoftTrackSet(cosmicTracks,2,4,1000000,minTrackMCS_anode,minTrackMCS_cathode,minTrackMCS_crossing);
-  ////getLArSoftTrackSet(cosmicTracks,2,4,1000000,0.0,0.0,0.0);
-  //saveTrackInfo(cosmicTracks);
-
+  getLArSoftTrackSet(cosmicTracks,numCalibTracks,minTrackMCS_anode,minTrackMCS_cathode,100000000.0);
+  doCalibration(cosmicTracks,0.01,3,1,1);
   
   timer.Stop();
   cout << "Calibration Time:  " << timer.CpuTime() << " sec." << endl;
@@ -449,30 +293,6 @@ Double_t doCoordTransformZ(const Double_t inputZ)
 {
   Double_t outputZ;
   outputZ = (Lz/10.37)*(inputZ)/100.0;
-
-  return outputZ;
-}
-
-Double_t doInvCoordTransformX(const Double_t inputX)
-{
-  Double_t outputX;
-  outputX = 100.0*(2.56/Lx)*(Lx - inputX)/VelRatio;
-
-  return outputX;
-}
-
-Double_t doInvCoordTransformY(const Double_t inputY)
-{
-  Double_t outputY;
-  outputY = 100.0*(2.33/Ly)*inputY - 116.5;
-
-  return outputY;
-}
-
-Double_t doInvCoordTransformZ(const Double_t inputZ)
-{
-  Double_t outputZ;
-  outputZ = 100.0*(10.37/Lz)*inputZ;
 
   return outputZ;
 }
@@ -864,746 +684,234 @@ vector<Double_t> findDistortedClosestPOA(const calibTrackInfo &calibTrackA, cons
   return return_vector;
 }
 
-void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t inputType, Int_t calibMode, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing)
+void getLArSoftTrackSet(vector<trackInfo> &tracks, Int_t maxCosmicTracks, Double_t minTrackMCS_anode, Double_t minTrackMCS_cathode, Double_t minTrackMCS_crossing)
 {
   tracks.clear();
 
-  TFile* mapFile;
-
-  if(inputType == 1)
-  {
-    mapFile = new TFile(inputFileLaser,"READ");
-
-    TTreeReader readerLasers("lasers", mapFile);
-    TTreeReader readerTracks("tracks", mapFile);
-
-    TTreeReaderValue<TVector3> track_start(readerLasers, "entry");
-    TTreeReaderValue<TVector3> track_end(readerLasers, "exit");
-    TTreeReaderArray<TVector3> track_points(readerTracks, "track");
-
-    Int_t nTracks = 0;
-    while (readerLasers.Next())
-    {
-      readerTracks.Next();
-    
-      nTracks++;
-    
-      Double_t x0, y0, z0;
-      Double_t x1, y1, z1;
-    
-      if ((*track_start).y() > (*track_end).y()) {
-        x0 = doCoordTransformX((*track_start).x());
-        y0 = doCoordTransformY((*track_start).y());
-        z0 = doCoordTransformZ((*track_start).z());
-    
-        x1 = doCoordTransformX((*track_end).x());
-        y1 = doCoordTransformY((*track_end).y());
-        z1 = doCoordTransformZ((*track_end).z());
-      }
-      else {
-        x0 = doCoordTransformX((*track_end).x());
-        y0 = doCoordTransformY((*track_end).y());
-        z0 = doCoordTransformZ((*track_end).z());
-    
-        x1 = doCoordTransformX((*track_start).x());
-        y1 = doCoordTransformY((*track_start).y());
-        z1 = doCoordTransformZ((*track_start).z());
-      }
-      
-      Double_t trackLength = sqrt(pow(x0-x1,2.0)+pow(y0-y1,2.0)+pow(z0-z1,2.0));
-      
-      Double_t theta = acos((y1-y0)/trackLength);
-      Double_t phi = acos((z1-z0)/(trackLength*sin(theta)));
-      if (x1 > x0) {
-        phi = -1.0*fabs(phi);
-      }
-      else {
-        phi = fabs(phi);
-      }
-    
-      trackInfo track;
-      elecInfo electron;
-    
-      track.energy = 1000000.0;
-      track.pdgID = 22;
-      track.x0 = x0;
-      track.y0 = y0;
-      track.z0 = z0;
-      track.x1 = x1;
-      track.y1 = y1;
-      track.z1 = z1;
-      track.theta = theta;
-      track.phi = phi;
-      track.electrons.clear();
-    
-      for(Int_t j = 0; j < track_points.GetSize(); j++)
-      {
-        if (((j % 10) != 0) && (j != track_points.GetSize()-1)) continue;
-        
-        electron.x = -1.0; // Dummy (currently don't save this info in file)
-        electron.y = -1.0; // Dummy (currently don't save this info in file)
-        electron.z = -1.0; // Dummy (currently don't save this info in file)
-        electron.t = -1.0; // Dummy (currently don't save this info in file)
-        electron.x_mod = min(max(0.0,doCoordTransformX(track_points[j].x())),Lx);
-        electron.y_mod = min(max(0.0,doCoordTransformY(track_points[j].y())),Ly);
-      	electron.z_mod = min(max(0.0,doCoordTransformZ(track_points[j].z())),Lz);
-        electron.t_mod = -1.0; // Dummy (currently don't save this info in file)
-        electron.fate = 0; // Dummy (currently don't save this info in file)
-
-        track.electrons.push_back(electron);
-      }
-      
-      tracks.push_back(track);
-    }
+  TFile* inputFile = new TFile(inputFileName,"READ");
+  
+  char* filestring = (char*) "";
+  char* filestring2 = (char*) "";
+  if (isSCEon == false) {
+    filestring = (char*) "_copy";
+    filestring2 = (char*) "t0ana/";
   }
-  else if(inputType == 2)
-  {
-    mapFile = new TFile(inputFileCosmic,"READ");
-    
-    char* filestring = (char*) "";
-    char* filestring2 = (char*) "";
-    if (isSCEon == false) {
-      filestring = (char*) "_copy";
-      filestring2 = (char*) "t0ana/";
-    }
-    
-    TTreeReader reader(Form("%sSCEtree%s",filestring2,filestring), mapFile);
-    TTreeReaderValue<Double_t> track_startX(reader, Form("track_startX%s",filestring));
-    TTreeReaderValue<Double_t> track_startY(reader, Form("track_startY%s",filestring));
-    TTreeReaderValue<Double_t> track_startZ(reader, Form("track_startZ%s",filestring));
-    TTreeReaderValue<Double_t> track_endX(reader, Form("track_endX%s",filestring));
-    TTreeReaderValue<Double_t> track_endY(reader, Form("track_endY%s",filestring));
-    TTreeReaderValue<Double_t> track_endZ(reader, Form("track_endZ%s",filestring));
-    TTreeReaderValue<Int_t> nPoints(reader, Form("track_nPoints%s",filestring));
-    TTreeReaderArray<Double_t> pointX(reader, Form("track_pointX%s",filestring));
-    TTreeReaderArray<Double_t> pointY(reader, Form("track_pointY%s",filestring));
-    TTreeReaderArray<Double_t> pointZ(reader, Form("track_pointZ%s",filestring));
-    TTreeReaderValue<Double_t> track_MCS(reader, Form("track_MCS_measurement%s",filestring));
-    TTreeReaderValue<Double_t> track_t0(reader, Form("track_t0%s",filestring));
-    
-    trackInfo track;
-    elecInfo electron;
-
-    TH1F *Zhist_1s = new TH1F("Zhist_1s","",50,0.0,10.0);
-    TH1F *Zhist_2s = new TH1F("Zhist_2s","",50,0.0,10.0);
-    TH1F *Zhist_3s = new TH1F("Zhist_3s","",50,0.0,10.0);
-    TH1F *Zhist_4s = new TH1F("Zhist_4s","",50,0.0,10.0);
-    TH1F *Zhist_5s = new TH1F("Zhist_5s","",50,0.0,10.0);
-    TH1F *Zhist_6s = new TH1F("Zhist_6s","",50,0.0,10.0);
-    TH1F *Zhist_7s = new TH1F("Zhist_7s","",50,0.0,10.0);
-
-    TH1F *Zhist_1e = new TH1F("Zhist_1e","",50,0.0,10.0);
-    TH1F *Zhist_2e = new TH1F("Zhist_2e","",50,0.0,10.0);
-    TH1F *Zhist_3e = new TH1F("Zhist_3e","",50,0.0,10.0);
-    TH1F *Zhist_4e = new TH1F("Zhist_4e","",50,0.0,10.0);
-    TH1F *Zhist_5e = new TH1F("Zhist_5e","",50,0.0,10.0);
-    TH1F *Zhist_6e = new TH1F("Zhist_6e","",50,0.0,10.0);
-    TH1F *Zhist_7e = new TH1F("Zhist_7e","",50,0.0,10.0);
-
-    TF1 *weightFunc;
-    if (isMC == true) {
-      weightFunc = new TF1("weightFunc","(1.0/75.0)*(x-5.0)^2 + (2.0/3.0)",0.0,10.0);
-    }
-    else {
-      weightFunc = new TF1("weightFunc","(2.0/75.0)*(x-5.0)^2 + (1.0/3.0)",0.0,10.0);
-    }
-    
-    TRandom3 *rand = new TRandom3(0);
-
-    Int_t inputTrackNum = -1;
-    Int_t nTracks = 0;
-    while (reader.Next())
-    {
-      inputTrackNum++;
-      if ((inputTrackNum < minInputTrackNum) || (inputTrackNum > maxInputTrackNum)) continue;
-      
-      if ((maxCosmicTracks != -1) && (nTracks >= maxCosmicTracks)) continue;
-      
-      if (*nPoints < 3) continue;
-      
-      Double_t xS, yS, zS;
-      Double_t xE, yE, zE;
-      Double_t x0, y0, z0;
-      Double_t x1, y1, z1;
-      
-      if (*track_startY > *track_endY) {
-        xS = doCoordTransformX(*track_startX);
-        yS = doCoordTransformY(*track_startY);
-        zS = doCoordTransformZ(*track_startZ);
-    
-        xE = doCoordTransformX(*track_endX);
-        yE = doCoordTransformY(*track_endY);
-        zE = doCoordTransformZ(*track_endZ);
-      }
-      else {
-        xS = doCoordTransformX(*track_endX);
-        yS = doCoordTransformY(*track_endY);
-        zS = doCoordTransformZ(*track_endZ);
-    
-        xE = doCoordTransformX(*track_startX);
-        yE = doCoordTransformY(*track_startY);
-        zE = doCoordTransformZ(*track_startZ);
-      }
-
-      Zhist_1s->Fill(zS);
-      Zhist_1e->Fill(zE);
-      
-      if (((xS < maxXdist) && (xE < maxXdist)) || ((xS > (Lx - maxXdist)) && (xE > (Lx - maxXdist))) || ((xS < maxXdist) && (yS < maxYdist)) || ((xS < maxXdist) && (yS > (Ly - maxYdist))) || ((xS < maxXdist) && (zS < maxZdist)) || ((xS < maxXdist) && (zS > (Lz - maxZdist))) || ((xE < maxXdist) && (yE < maxYdist)) || ((xE < maxXdist) && (yE > (Ly - maxYdist))) || ((xE < maxXdist) && (zE < maxZdist)) || ((xE < maxXdist) && (zE > (Lz - maxZdist))) || ((yS < maxYdist) && (zS < maxZdist)) || ((yS > (Ly - maxYdist)) && (zS < maxZdist)) || ((yS < maxYdist) && (zS > (Lz - maxZdist))) || ((yS > (Ly - maxYdist)) && (zS > (Lz - maxZdist))) || ((yE < maxYdist) && (zE < maxZdist)) || ((yE > (Ly - maxYdist)) && (zE < maxZdist)) || ((yE < maxYdist) && (zE > (Lz - maxZdist))) || ((yE > (Ly - maxYdist)) && (zE > (Lz - maxZdist)))) continue;
-
-      if (((xS > (Lx - maxXdist)) && ((yS < maxYdist)  || (yS > (Ly - maxYdist)) || (zS < maxZdist) || (zS > (Lz - maxZdist)))) || ((xE > (Lx - maxXdist)) && ((yE < maxYdist)  || (yE > (Ly - maxYdist)) || (zE < maxZdist) || (zE > (Lz - maxZdist))))) continue; // NEW
-      
-      Zhist_2s->Fill(zS);
-      Zhist_2e->Fill(zE);
-      
-      if (((xS > maxXdist) && (xS < (Lx - maxXdist)) && (yS > maxYdist) && (yS < (Ly - maxYdist)) && (zS > maxZdist) && (zS < (Lz - maxZdist))) || ((xE > maxXdist) && (xE < (Lx - maxXdist)) && (yE > maxYdist) && (yE < (Ly - maxYdist)) && (zE > maxZdist) && (zE < (Lz - maxZdist)))) continue;
-
-      Zhist_3s->Fill(zS);
-      Zhist_3e->Fill(zE);
-    
-      if ((((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_anode)) continue;
-
-      Zhist_4s->Fill(zS);
-      Zhist_4e->Fill(zE);
-      
-      if ((((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_cathode)) continue;
-
-      Zhist_5s->Fill(zS);
-      Zhist_5e->Fill(zE);
-
-      if ((((xS > (Lx - maxXdist)) && (xE < maxXdist)) || ((xE > (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_crossing)) continue;
-
-      Zhist_6s->Fill(zS);
-      Zhist_6e->Fill(zE);
-
-      double randNum = rand->Uniform(1.0);
-      if (randNum > max(weightFunc->Eval(zS),weightFunc->Eval(zE))) continue;
-
-      Zhist_7s->Fill(zS);
-      Zhist_7e->Fill(zE);
-
-      nTracks++;
-
-      double SCEfactor = 1.0;
-      if (isSCEon == false) {
-        SCEfactor = 0.0;
-      }
-      
-      // Correct track end point furthest from cathode/anode
-      Double_t cathodeOffset = 0.0;
-      if(calibMode == 2) {
-        if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
-          if (xS < xE) {
-            vector<Double_t> offsets = findCathodeOffsets(yS,zS);
-	    cathodeOffset = offsets.at(0);
-          }
-          else {
-            vector<Double_t> offsets = findCathodeOffsets(yE,zE);
-            cathodeOffset = offsets.at(0);
-          }
-        
-          xS += SCEfactor*(TrueCathode-ShiftedCathode) + SCEfactor*cathodeOffset;
-          xE += SCEfactor*(TrueCathode-ShiftedCathode) + SCEfactor*cathodeOffset;
-        }
-        else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
-          xS += (TrueAnode-ShiftedAnode);
-          xE += (TrueAnode-ShiftedAnode);
-        }
-      }
-      else if(calibMode == 4) {
-        if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
-          if (xS < xE) {
-            cathodeOffset = getCathodeCorr(yS,zS,1);
-          }
-          else {
-            cathodeOffset = getCathodeCorr(yE,zE,1);
-          }
-        
-          xS += SCEfactor*(TrueCathode-ShiftedCathode) + SCEfactor*cathodeOffset;
-          xE += SCEfactor*(TrueCathode-ShiftedCathode) + SCEfactor*cathodeOffset;
-        }
-        else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
-          xS += (TrueAnode-ShiftedAnode);
-          xE += (TrueAnode-ShiftedAnode);
-        }
-      }
-      
-      vector<Double_t> StruthOffsets = getTruthOffsets(xS,yS,zS);
-      vector<Double_t> EtruthOffsets = getTruthOffsets(xE,yE,zE);
-
-      if(calibMode == 1) {
-        if(xS < maxXdist) {
-          x0 = TrueCathode;
-          y0 = yS;
-          z0 = zS;
-        }
-        else if (xS > (Lx - maxXdist)) {
-          x0 = TrueAnode;
-          y0 = yS;
-          z0 = zS;
-        }
-        else if (min(fabs(yS),fabs(Ly-yS)) < min(fabs(zS),fabs(Lz-zS))) {
-          if (fabs(yS) < fabs(Ly-yS)) {
-            x0 = xS;// + 0.16*(yS-TrueBottom);//xS;
-            y0 = TrueBottom;
-            z0 = zS;
-          }
-          else {
-            x0 = xS;// + 0.16*(TrueTop-yS);//xS;
-            y0 = TrueTop;
-            z0 = zS;
-          }
-        }
-        else {
-          if (fabs(zS) < fabs(Lz-zS)) {
-            x0 = xS;// + 0.16*(zS-TrueUpstream);//xS;
-            y0 = yS;
-            z0 = TrueUpstream;
-          }
-          else {
-            x0 = xS;// + 0.16*(TrueDownstream-zS);//xS;
-            y0 = yS;
-            z0 = TrueDownstream;
-          }
-        }
-        
-        if(xE < maxXdist) {
-          x1 = TrueCathode;
-          y1 = yE;
-          z1 = zE;
-        }
-        else if (xE > (Lx - maxXdist)) {
-          x1 = TrueAnode;
-          y1 = yE;
-          z1 = zE;
-        }
-        else if (min(fabs(yE),fabs(Ly-yE)) < min(fabs(zE),fabs(Lz-zE))) {
-          if (fabs(yE) < fabs(Ly-yE)) {
-            x1 = xE;// + 0.16*(yE-TrueBottom);//xE;
-            y1 = TrueBottom;
-            z1 = zE;
-          }
-          else {
-            x1 = xE;// + 0.16*(TrueTop-yE);//xE;
-            y1 = TrueTop;
-            z1 = zE;
-          }
-        }
-        else {
-          if (fabs(zE) < fabs(Lz-zE)) {
-            x1 = xE;// + 0.16*(zE-TrueUpstream);//xE;
-            y1 = yE;
-            z1 = TrueUpstream;
-          }
-          else {
-            x1 = xE;// + 0.16*(TrueDownstream-zE);//xE;
-            y1 = yE;
-            z1 = TrueDownstream;
-          }
-        }
-      }
-      else if(calibMode == 2) {
-        if(xS < maxXdist) {
-          x0 = TrueCathode;
-          y0 = yS + SCEfactor*StruthOffsets.at(1);
-          z0 = zS + SCEfactor*StruthOffsets.at(2);
-        }
-        else if (xS > (Lx - maxXdist)) {
-          x0 = TrueAnode;
-          y0 = yS;
-          z0 = zS;
-        }
-        else if (min(fabs(yS),fabs(Ly-yS)) < min(fabs(zS),fabs(Lz-zS))) {
-          if (fabs(yS) < fabs(Ly-yS)) {
-            x0 = xS + SCEfactor*StruthOffsets.at(0);
-            y0 = TrueBottom;
-            z0 = zS + SCEfactor*StruthOffsets.at(2);
-          }
-          else {
-            x0 = xS + SCEfactor*StruthOffsets.at(0);
-            y0 = TrueTop;
-            z0 = zS + SCEfactor*StruthOffsets.at(2);
-          }
-        }
-        else {
-          if (fabs(zS) < fabs(Lz-zS)) {
-            x0 = xS + SCEfactor*StruthOffsets.at(0);
-            y0 = yS + SCEfactor*StruthOffsets.at(1);
-            z0 = TrueUpstream;
-          }
-          else {
-            x0 = xS + SCEfactor*StruthOffsets.at(0);
-            y0 = yS + SCEfactor*StruthOffsets.at(1);
-            z0 = TrueDownstream;
-          }
-        }
-        
-        if(xE < maxXdist) {
-          x1 = TrueCathode;
-          y1 = yE + SCEfactor*EtruthOffsets.at(1);
-          z1 = zE + SCEfactor*EtruthOffsets.at(2);
-        }
-        else if (xE > (Lx - maxXdist)) {
-          x1 = TrueAnode;
-          y1 = yE;
-          z1 = zE;
-        }
-        else if (min(fabs(yE),fabs(Ly-yE)) < min(fabs(zE),fabs(Lz-zE))) {
-          if (fabs(yE) < fabs(Ly-yE)) {
-            x1 = xE + SCEfactor*EtruthOffsets.at(0);
-            y1 = TrueBottom;
-            z1 = zE + SCEfactor*EtruthOffsets.at(2);
-          }
-          else {
-            x1 = xE + SCEfactor*EtruthOffsets.at(0);
-            y1 = TrueTop;
-            z1 = zE + SCEfactor*EtruthOffsets.at(2);
-          }
-        }
-        else {
-          if (fabs(zE) < fabs(Lz-zE)) {
-            x1 = xE + SCEfactor*EtruthOffsets.at(0);
-            y1 = yE + SCEfactor*EtruthOffsets.at(1);
-            z1 = TrueUpstream;
-          }
-          else {
-            x1 = xE + SCEfactor*EtruthOffsets.at(0);
-            y1 = yE + SCEfactor*EtruthOffsets.at(1);
-            z1 = TrueDownstream;
-          }
-        }
-      }
-      else if(calibMode == 3) {
-        if(xS < maxXdist) {
-          x0 = TrueCathode;
-          y0 = yS + getFaceCorr(xS,yS,zS,4,2);
-          z0 = zS + getFaceCorr(xS,yS,zS,4,3);
-        }
-        else if (xS > (Lx - maxXdist)) {
-          x0 = TrueAnode;
-          y0 = yS;
-          z0 = zS;
-        }
-        else if (min(fabs(yS),fabs(Ly-yS)) < min(fabs(zS),fabs(Lz-zS))) {
-          if (fabs(yS) < fabs(Ly-yS)) {
-            x0 = xS + getFaceCorr(xS,yS,zS,1,1);
-            y0 = TrueBottom;
-            z0 = zS + getFaceCorr(xS,yS,zS,1,3);
-          }
-          else {
-            x0 = xS + getFaceCorr(xS,yS,zS,0,1);
-            y0 = TrueTop;
-            z0 = zS + getFaceCorr(xS,yS,zS,0,3);
-          }
-        }
-        else {
-          if (fabs(zS) < fabs(Lz-zS)) {
-            x0 = xS + getFaceCorr(xS,yS,zS,2,1);
-            y0 = yS + getFaceCorr(xS,yS,zS,2,2);
-            z0 = TrueUpstream;
-          }
-          else {
-            x0 = xS + getFaceCorr(xS,yS,zS,3,1);
-            y0 = yS + getFaceCorr(xS,yS,zS,3,2);
-            z0 = TrueDownstream;
-          }
-        }
-        
-        if(xE < maxXdist) {
-          x1 = TrueCathode;
-          y1 = yE + getFaceCorr(xE,yE,zE,4,2);
-          z1 = zE + getFaceCorr(xE,yE,zE,4,3);
-        }
-        else if (xE > (Lx - maxXdist)) {
-          x1 = TrueAnode;
-          y1 = yE;
-          z1 = zE;
-        }
-        else if (min(fabs(yE),fabs(Ly-yE)) < min(fabs(zE),fabs(Lz-zE))) {
-          if (fabs(yE) < fabs(Ly-yE)) {
-            x1 = xE + getFaceCorr(xE,yE,zE,1,1);
-            y1 = TrueBottom;
-            z1 = zE + getFaceCorr(xE,yE,zE,1,3);
-          }
-          else {
-            x1 = xE + getFaceCorr(xE,yE,zE,0,1);
-            y1 = TrueTop;
-            z1 = zE + getFaceCorr(xE,yE,zE,0,3);
-          }
-        }
-        else {
-          if (fabs(zE) < fabs(Lz-zE)) {
-            x1 = xE + getFaceCorr(xE,yE,zE,2,1);
-            y1 = yE + getFaceCorr(xE,yE,zE,2,2);
-            z1 = TrueUpstream;
-          }
-          else {
-            x1 = xE + getFaceCorr(xE,yE,zE,3,1);
-            y1 = yE + getFaceCorr(xE,yE,zE,3,2);
-            z1 = TrueDownstream;
-          }
-        }
-      }
-      else if(calibMode == 4) {
-        if(xS < maxXdist) {
-          x0 = TrueCathode;
-          y0 = yS + -1.0*SCEfactor*getCathodeCorr(yS,zS,2);
-          z0 = zS + -1.0*SCEfactor*getCathodeCorr(yS,zS,3);
-        }
-        else if (xS > (Lx - maxXdist)) {
-          x0 = TrueAnode;
-          y0 = yS;
-          z0 = zS;
-        }
-        else if (min(fabs(yS),fabs(Ly-yS)) < min(fabs(zS),fabs(Lz-zS))) {
-          if (fabs(yS) < fabs(Ly-yS)) {
-            x0 = xS + SCEfactor*(TrueBottom-yS)*StruthOffsets.at(0)/StruthOffsets.at(1);
-            y0 = TrueBottom;
-            z0 = zS + SCEfactor*(TrueBottom-yS)*StruthOffsets.at(2)/StruthOffsets.at(1);
-          }
-          else {
-            x0 = xS + SCEfactor*(TrueTop-yS)*StruthOffsets.at(0)/StruthOffsets.at(1);
-            y0 = TrueTop;
-            z0 = zS + SCEfactor*(TrueTop-yS)*StruthOffsets.at(2)/StruthOffsets.at(1);
-          }
-        }
-        else {
-          if (fabs(zS) < fabs(Lz-zS)) {
-            x0 = xS + SCEfactor*(TrueUpstream-zS)*StruthOffsets.at(0)/StruthOffsets.at(2);
-            y0 = yS + SCEfactor*(TrueUpstream-zS)*StruthOffsets.at(1)/StruthOffsets.at(2);
-            z0 = TrueUpstream;
-          }
-          else {
-            x0 = xS + SCEfactor*(TrueDownstream-zS)*StruthOffsets.at(0)/StruthOffsets.at(2);
-            y0 = yS + SCEfactor*(TrueDownstream-zS)*StruthOffsets.at(1)/StruthOffsets.at(2);
-            z0 = TrueDownstream;
-          }
-        }
-        
-        if(xE < maxXdist) {
-          x1 = TrueCathode;
-          y1 = yE + -1.0*SCEfactor*getCathodeCorr(yE,zE,2);
-          z1 = zE + -1.0*SCEfactor*getCathodeCorr(yE,zE,3);
-        }
-        else if (xE > (Lx - maxXdist)) {
-          x1 = TrueAnode;
-          y1 = yE;
-          z1 = zE;
-        }
-        else if (min(fabs(yE),fabs(Ly-yE)) < min(fabs(zE),fabs(Lz-zE))) {
-          if (fabs(yE) < fabs(Ly-yE)) {
-            x1 = xE + SCEfactor*(TrueBottom-yE)*EtruthOffsets.at(0)/EtruthOffsets.at(1);
-            y1 = TrueBottom;
-            z1 = zE + SCEfactor*(TrueBottom-yE)*EtruthOffsets.at(2)/EtruthOffsets.at(1);
-          }
-          else {
-            x1 = xE + SCEfactor*(TrueTop-yE)*EtruthOffsets.at(0)/EtruthOffsets.at(1);
-            y1 = TrueTop;
-            z1 = zE + SCEfactor*(TrueTop-yE)*EtruthOffsets.at(2)/EtruthOffsets.at(1);
-          }
-        }
-        else {
-          if (fabs(zE) < fabs(Lz-zE)) {
-            x1 = xE + SCEfactor*(TrueUpstream-zE)*EtruthOffsets.at(0)/EtruthOffsets.at(2);
-            y1 = yE + SCEfactor*(TrueUpstream-zE)*EtruthOffsets.at(1)/EtruthOffsets.at(2);
-            z1 = TrueUpstream;
-          }
-          else {
-            x1 = xE + SCEfactor*(TrueDownstream-zE)*EtruthOffsets.at(0)/EtruthOffsets.at(2);
-            y1 = yE + SCEfactor*(TrueDownstream-zE)*EtruthOffsets.at(1)/EtruthOffsets.at(2);
-            z1 = TrueDownstream;
-          }
-        }
-      }
-      
-      Double_t trackLength = sqrt(pow(x0-x1,2.0)+pow(y0-y1,2.0)+pow(z0-z1,2.0));
-      
-      //Double_t theta = ArcCos((y1-y0)/trackLength);
-      //Double_t phi = ArcSin((x0-x1)/(trackLength*Sin(theta)));
-      Double_t theta = acos((y1-y0)/trackLength);
-      Double_t phi = acos((z1-z0)/(trackLength*sin(theta)));
-      if (x1 > x0) {
-        phi = -1.0*fabs(phi);
-      }
-      else {
-        phi = fabs(phi);
-      }
-      
-      track.energy = *track_MCS/1000.0;
-      track.pdgID = 13;
-      track.x0 = x0;
-      track.y0 = y0;
-      track.z0 = z0;
-      track.x1 = x1;
-      track.y1 = y1;
-      track.z1 = z1;
-      track.theta = theta;
-      track.phi = phi;
-      track.electrons.clear();
-
-      //if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
-      //  if (x0 < x1) {
-      //	  cathodeOffset = findCathodeOffsets(y0,z0);
-      //	}
-      //	else {
-      //	  cathodeOffset = findCathodeOffsets(y1,z1);
-      //  }
-      //}
-
-      for(Int_t j = 0; j < *nPoints; j++)
-      {
-        if (((j % 10) != 0) && (j != *nPoints-1)) continue;
-	
-        electron.x = -1.0; // Dummy (currently don't save this info in file)
-        electron.y = -1.0; // Dummy (currently don't save this info in file)
-        electron.z = -1.0; // Dummy (currently don't save this info in file)
-        electron.t = -1.0; // Dummy (currently don't save this info in file)
-        //electron.x_mod = doCoordTransformX(pointX[j]);
-	if(calibMode == 1) {
-          if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
-            electron.x_mod = doCoordTransformX(pointX[j])+(TrueAnode-ShiftedAnode);
-          }
-          else {
-            electron.x_mod = doCoordTransformX(pointX[j]);
-          }
-	}
-	else if(calibMode == 2) {
-          if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
-	    electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)+SCEfactor*cathodeOffset;
-	  }
-          else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
-            electron.x_mod = doCoordTransformX(pointX[j])+(TrueAnode-ShiftedAnode);
-          }
-          else {
-            electron.x_mod = doCoordTransformX(pointX[j]);
-          }
-	}
-	else if (calibMode == 3) {
-          if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
-	    if(xS < xE) {
-	      electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)-getFaceCorr(xS,yS,zS,4,1)-OffsetCathodeReco; // not quite correct (improper inverse operation)
-	    }
-	    else {
-	      electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)-getFaceCorr(xE,yE,zE,4,1)-OffsetCathodeReco; // not quite correct (improper inverse operation)
-	    }
-	  }
-          else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
-            electron.x_mod = doCoordTransformX(pointX[j])+(TrueAnode-ShiftedAnode);
-          }
-          else {
-            electron.x_mod = doCoordTransformX(pointX[j]);
-          }
-	}
-	else if(calibMode == 4) {
-          if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
-	    electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)+SCEfactor*cathodeOffset;
-	  }
-          else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
-            electron.x_mod = doCoordTransformX(pointX[j])+(TrueAnode-ShiftedAnode);
-          }
-          else {
-            electron.x_mod = doCoordTransformX(pointX[j]);
-          }
-	}
-        electron.y_mod = doCoordTransformY(pointY[j]);
-        electron.z_mod = doCoordTransformZ(pointZ[j]);
-        electron.t_mod = -1.0; // Dummy (currently don't save this info in file)
-        electron.fate = 0; // Dummy (currently don't save this info in file)
-    
-        track.electrons.push_back(electron);
-      }
-      
-      tracks.push_back(track);
-    }
-
-    outputFile->cd();
-    
-    Zhist_1s->Write();
-    Zhist_2s->Write();
-    Zhist_3s->Write();
-    Zhist_4s->Write();
-    Zhist_5s->Write();
-    Zhist_6s->Write();
-    Zhist_7s->Write();
-
-    Zhist_1e->Write();
-    Zhist_2e->Write();
-    Zhist_3e->Write();
-    Zhist_4e->Write();
-    Zhist_5e->Write();
-    Zhist_6e->Write();
-    Zhist_7e->Write();
-  }
-}
-
-vector<trackInfo> getTrackSet(Int_t inputType)
-{
-  vector<trackInfo> tracks;
-
-  TFile* mapFile;
-  Char_t* mapName = (Char_t*)"";
-
-  if(inputType == 1)
-  {
-    mapFile = new TFile(inputFileLaser,"READ");
-    mapName = (Char_t*)"laser";
-  }
-  else if(inputType == 2)
-  {
-    mapFile = new TFile(inputFileCosmic,"READ");
-    mapName = (Char_t*)"cosmic";
-  }
-  else
-  {
-    return tracks;
-  }
-
-  TTreeReader reader(Form("SpaCEtree_%s",mapName), mapFile);
-  TTreeReaderValue<Double_t> x0(reader, Form("x0_%s",mapName));
-  TTreeReaderValue<Double_t> y0(reader, Form("y0_%s",mapName));
-  TTreeReaderValue<Double_t> z0(reader, Form("z0_%s",mapName));
-  TTreeReaderValue<Double_t> theta(reader, Form("theta_%s",mapName));
-  TTreeReaderValue<Double_t> phi(reader, Form("phi_%s",mapName));
-  TTreeReaderValue<Int_t> nElec(reader, Form("nElec_%s",mapName));
-  TTreeReaderArray<Double_t> elecX(reader, Form("elecX_%s",mapName));
-  TTreeReaderArray<Double_t> elecY(reader, Form("elecY_%s",mapName));
-  TTreeReaderArray<Double_t> elecZ(reader, Form("elecZ_%s",mapName));
-
+  
+  TTreeReader reader(Form("%sSCEtree%s",filestring2,filestring), inputFile);
+  TTreeReaderValue<Double_t> track_startX(reader, Form("track_startX%s",filestring));
+  TTreeReaderValue<Double_t> track_startY(reader, Form("track_startY%s",filestring));
+  TTreeReaderValue<Double_t> track_startZ(reader, Form("track_startZ%s",filestring));
+  TTreeReaderValue<Double_t> track_endX(reader, Form("track_endX%s",filestring));
+  TTreeReaderValue<Double_t> track_endY(reader, Form("track_endY%s",filestring));
+  TTreeReaderValue<Double_t> track_endZ(reader, Form("track_endZ%s",filestring));
+  TTreeReaderValue<Int_t> nPoints(reader, Form("track_nPoints%s",filestring));
+  TTreeReaderArray<Double_t> pointX(reader, Form("track_pointX%s",filestring));
+  TTreeReaderArray<Double_t> pointY(reader, Form("track_pointY%s",filestring));
+  TTreeReaderArray<Double_t> pointZ(reader, Form("track_pointZ%s",filestring));
+  TTreeReaderValue<Double_t> track_MCS(reader, Form("track_MCS_measurement%s",filestring));
+  TTreeReaderValue<Double_t> track_t0(reader, Form("track_t0%s",filestring));
+  
   trackInfo track;
   elecInfo electron;
+
+  TH1F *Zhist_1s = new TH1F("Zhist_1s","",50,0.0,10.0);
+  TH1F *Zhist_2s = new TH1F("Zhist_2s","",50,0.0,10.0);
+  TH1F *Zhist_3s = new TH1F("Zhist_3s","",50,0.0,10.0);
+  TH1F *Zhist_4s = new TH1F("Zhist_4s","",50,0.0,10.0);
+  TH1F *Zhist_5s = new TH1F("Zhist_5s","",50,0.0,10.0);
+  TH1F *Zhist_6s = new TH1F("Zhist_6s","",50,0.0,10.0);
+  TH1F *Zhist_7s = new TH1F("Zhist_7s","",50,0.0,10.0);
+
+  TH1F *Zhist_1e = new TH1F("Zhist_1e","",50,0.0,10.0);
+  TH1F *Zhist_2e = new TH1F("Zhist_2e","",50,0.0,10.0);
+  TH1F *Zhist_3e = new TH1F("Zhist_3e","",50,0.0,10.0);
+  TH1F *Zhist_4e = new TH1F("Zhist_4e","",50,0.0,10.0);
+  TH1F *Zhist_5e = new TH1F("Zhist_5e","",50,0.0,10.0);
+  TH1F *Zhist_6e = new TH1F("Zhist_6e","",50,0.0,10.0);
+  TH1F *Zhist_7e = new TH1F("Zhist_7e","",50,0.0,10.0);
+
+  TF1 *weightFunc;
+  if (isMC == true) {
+    weightFunc = new TF1("weightFunc","(1.0/75.0)*(x-5.0)^2 + (2.0/3.0)",0.0,10.0);
+  }
+  else {
+    weightFunc = new TF1("weightFunc","(2.0/75.0)*(x-5.0)^2 + (1.0/3.0)",0.0,10.0);
+  }
   
+  TRandom3 *rand = new TRandom3(0);
+
+  Int_t inputTrackNum = -1;
+  Int_t nTracks = 0;
   while (reader.Next())
   {
-    track.energy = -1.0;
-    track.pdgID = -1;
-    track.x0 = *x0;
-    track.y0 = *y0;
-    track.z0 = *z0;
-    track.x1 = -1.0;
-    track.y1 = -1.0;
-    track.z1 = -1.0;
-    track.theta = *theta;
-    track.phi = *phi;
-    track.electrons.clear();
+    inputTrackNum++;
+    if ((inputTrackNum < minInputTrackNum) || (inputTrackNum > maxInputTrackNum)) continue;
     
-    for(Int_t j = 0; j < *nElec; j++)
+    if ((maxCosmicTracks != -1) && (nTracks >= maxCosmicTracks)) continue;
+    
+    if (*nPoints < 3) continue;
+    
+    Double_t xS, yS, zS;
+    Double_t xE, yE, zE;
+    Double_t x0, y0, z0;
+    Double_t x1, y1, z1;
+    
+    if (*track_startY > *track_endY) {
+      xS = doCoordTransformX(*track_startX);
+      yS = doCoordTransformY(*track_startY);
+      zS = doCoordTransformZ(*track_startZ);
+  
+      xE = doCoordTransformX(*track_endX);
+      yE = doCoordTransformY(*track_endY);
+      zE = doCoordTransformZ(*track_endZ);
+    }
+    else {
+      xS = doCoordTransformX(*track_endX);
+      yS = doCoordTransformY(*track_endY);
+      zS = doCoordTransformZ(*track_endZ);
+  
+      xE = doCoordTransformX(*track_startX);
+      yE = doCoordTransformY(*track_startY);
+      zE = doCoordTransformZ(*track_startZ);
+    }
+
+    Zhist_1s->Fill(zS);
+    Zhist_1e->Fill(zE);
+    
+    if (((xS < maxXdist) && (xE < maxXdist)) || ((xS > (Lx - maxXdist)) && (xE > (Lx - maxXdist))) || ((xS < maxXdist) && (yS < maxYdist)) || ((xS < maxXdist) && (yS > (Ly - maxYdist))) || ((xS < maxXdist) && (zS < maxZdist)) || ((xS < maxXdist) && (zS > (Lz - maxZdist))) || ((xE < maxXdist) && (yE < maxYdist)) || ((xE < maxXdist) && (yE > (Ly - maxYdist))) || ((xE < maxXdist) && (zE < maxZdist)) || ((xE < maxXdist) && (zE > (Lz - maxZdist))) || ((yS < maxYdist) && (zS < maxZdist)) || ((yS > (Ly - maxYdist)) && (zS < maxZdist)) || ((yS < maxYdist) && (zS > (Lz - maxZdist))) || ((yS > (Ly - maxYdist)) && (zS > (Lz - maxZdist))) || ((yE < maxYdist) && (zE < maxZdist)) || ((yE > (Ly - maxYdist)) && (zE < maxZdist)) || ((yE < maxYdist) && (zE > (Lz - maxZdist))) || ((yE > (Ly - maxYdist)) && (zE > (Lz - maxZdist)))) continue;
+
+    if (((xS > (Lx - maxXdist)) && ((yS < maxYdist)  || (yS > (Ly - maxYdist)) || (zS < maxZdist) || (zS > (Lz - maxZdist)))) || ((xE > (Lx - maxXdist)) && ((yE < maxYdist)  || (yE > (Ly - maxYdist)) || (zE < maxZdist) || (zE > (Lz - maxZdist))))) continue; // NEW
+    
+    Zhist_2s->Fill(zS);
+    Zhist_2e->Fill(zE);
+    
+    if (((xS > maxXdist) && (xS < (Lx - maxXdist)) && (yS > maxYdist) && (yS < (Ly - maxYdist)) && (zS > maxZdist) && (zS < (Lz - maxZdist))) || ((xE > maxXdist) && (xE < (Lx - maxXdist)) && (yE > maxYdist) && (yE < (Ly - maxYdist)) && (zE > maxZdist) && (zE < (Lz - maxZdist)))) continue;
+
+    Zhist_3s->Fill(zS);
+    Zhist_3e->Fill(zE);
+  
+    if ((((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_anode)) continue;
+
+    Zhist_4s->Fill(zS);
+    Zhist_4e->Fill(zE);
+    
+    if ((((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_cathode)) continue;
+
+    Zhist_5s->Fill(zS);
+    Zhist_5e->Fill(zE);
+
+    if ((((xS > (Lx - maxXdist)) && (xE < maxXdist)) || ((xE > (Lx - maxXdist)) && (xS < maxXdist))) && (*track_MCS < 1000.0*minTrackMCS_crossing)) continue;
+
+    Zhist_6s->Fill(zS);
+    Zhist_6e->Fill(zE);
+
+    double randNum = rand->Uniform(1.0);
+    if (randNum > max(weightFunc->Eval(zS),weightFunc->Eval(zE))) continue;
+
+    Zhist_7s->Fill(zS);
+    Zhist_7e->Fill(zE);
+
+    nTracks++;
+
+    double SCEfactor = 1.0;
+    if (isSCEon == false) {
+      SCEfactor = 0.0;
+    }
+    
+    // Correct track end point furthest from cathode/anode
+    Double_t cathodeOffset = 0.0;
+    if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
+      if (xS < xE) {
+        cathodeOffset = getOffset(0.0,yS+getOffset(0.0,yS,zS,2,1),zS+getOffset(0.0,yS,zS,3,1),1,0);
+      }
+      else {
+        cathodeOffset = getOffset(0.0,yE+getOffset(0.0,yE,zE,2,1),zE+getOffset(0.0,yE,zE,3,1),1,0);
+      }
+    
+      xS += SCEfactor*(TrueCathode-ShiftedCathode) + SCEfactor*cathodeOffset;
+      xE += SCEfactor*(TrueCathode-ShiftedCathode) + SCEfactor*cathodeOffset;
+    }
+    else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
+      xS += (TrueAnode-ShiftedAnode);
+      xE += (TrueAnode-ShiftedAnode);
+    }
+
+    x0 = xS + SCEfactor*getOffset(xS,yS,zS,1,1);
+    y0 = yS + SCEfactor*getOffset(xS,yS,zS,2,1);
+    z0 = zS + SCEfactor*getOffset(xS,yS,zS,3,1);
+
+    x1 = xE + SCEfactor*getOffset(xE,yE,zE,1,1);
+    y1 = yE + SCEfactor*getOffset(xE,yE,zE,2,1);
+    z1 = zE + SCEfactor*getOffset(xE,yE,zE,3,1);
+    
+    Double_t trackLength = sqrt(pow(x0-x1,2.0)+pow(y0-y1,2.0)+pow(z0-z1,2.0));
+    
+    Double_t theta = acos((y1-y0)/trackLength);
+    Double_t phi = acos((z1-z0)/(trackLength*sin(theta)));
+    if (x1 > x0) {
+      phi = -1.0*fabs(phi);
+    }
+    else {
+      phi = fabs(phi);
+    }
+    
+    track.energy = *track_MCS/1000.0;
+    track.pdgID = 13;
+    track.x0 = x0;
+    track.y0 = y0;
+    track.z0 = z0;
+    track.x1 = x1;
+    track.y1 = y1;
+    track.z1 = z1;
+    track.theta = theta;
+    track.phi = phi;
+    track.electrons.clear();
+
+    for(Int_t j = 0; j < *nPoints; j++)
     {
+      if (((j % 10) != 0) && (j != *nPoints-1)) continue;
+  	
       electron.x = -1.0; // Dummy (currently don't save this info in file)
       electron.y = -1.0; // Dummy (currently don't save this info in file)
       electron.z = -1.0; // Dummy (currently don't save this info in file)
       electron.t = -1.0; // Dummy (currently don't save this info in file)
-      electron.x_mod = elecX[j];
-      electron.y_mod = elecY[j];
-      electron.z_mod = elecZ[j];
+      if (((xS < (Lx - maxXdist)) && (xE < maxXdist)) || ((xE < (Lx - maxXdist)) && (xS < maxXdist))) {
+        electron.x_mod = doCoordTransformX(pointX[j])+SCEfactor*(TrueCathode-ShiftedCathode)+SCEfactor*cathodeOffset;
+      }
+      else if (((xS > (Lx - maxXdist)) && (xE > maxXdist)) || ((xE > (Lx - maxXdist)) && (xS > maxXdist))) {
+        electron.x_mod = doCoordTransformX(pointX[j])+(TrueAnode-ShiftedAnode);
+      }
+      else {
+        electron.x_mod = doCoordTransformX(pointX[j]);
+      }
+      electron.y_mod = doCoordTransformY(pointY[j]);
+      electron.z_mod = doCoordTransformZ(pointZ[j]);
       electron.t_mod = -1.0; // Dummy (currently don't save this info in file)
       electron.fate = 0; // Dummy (currently don't save this info in file)
-
+  
       track.electrons.push_back(electron);
     }
     
     tracks.push_back(track);
   }
 
-  return tracks;
+  outputFile->cd();
+  
+  Zhist_1s->Write();
+  Zhist_2s->Write();
+  Zhist_3s->Write();
+  Zhist_4s->Write();
+  Zhist_5s->Write();
+  Zhist_6s->Write();
+  Zhist_7s->Write();
+
+  Zhist_1e->Write();
+  Zhist_2e->Write();
+  Zhist_3e->Write();
+  Zhist_4e->Write();
+  Zhist_5e->Write();
+  Zhist_6e->Write();
+  Zhist_7e->Write();
 }
 
 vector<calibTrackInfo> makeCalibTracks(const vector<trackInfo> &tracks)
@@ -1642,457 +950,6 @@ vector<calibTrackInfo> makeCalibTracks(const vector<trackInfo> &tracks)
   }
 
   return calibTracks;
-}
-
-void doLaserLaserCalib(const vector<calibTrackInfo> &laserCalibTracks, Double_t distScale, Double_t maxDistFactor, Int_t saveInfo)
-{
-  calibTrackInfo calibTrackA;
-  calibTrackInfo calibTrackB;
-
-  Int_t numLaserTracks = laserCalibTracks.size();
-
-  vector<Double_t> POAparams;
-  vector<Double_t> POAparamsDistorted;
-  Double_t distVal;
-  Double_t distValDistorted;
-  Double_t distWeight;
-  Double_t xVal;
-  Double_t yVal;
-  Double_t zVal;
-  Double_t xValDistorted;
-  Double_t yValDistorted;
-  Double_t zValDistorted;
-  Int_t xCalibLowIndex;
-  Int_t xCalibHighIndex;
-  Int_t yCalibLowIndex;
-  Int_t yCalibHighIndex;
-  Int_t zCalibLowIndex;
-  Int_t zCalibHighIndex;
-  Double_t xCalibFrac;
-  Double_t yCalibFrac;
-  Double_t zCalibFrac;
-  Double_t tempFactor;
-
-  Double_t crossDistX;
-  Double_t crossDistY;
-  Double_t crossDistZ;
-  Double_t crossDistX_mod;
-  Double_t crossDistY_mod;
-  Double_t crossDistZ_mod;
-  
-  Int_t trackNum1;
-  Int_t trackNum2;
-  Int_t crossType = 1;
-  
-  TTree *T_crossings = new TTree("SpaCEtree_crossings","SpaCEtree_crossings");
-  T_crossings->Branch("trackNum1",&trackNum1,"data_crossings/I");
-  T_crossings->Branch("trackNum2",&trackNum2,"data_crossings/I");  
-  T_crossings->Branch("crossX",&xVal,"data_crossings/D");
-  T_crossings->Branch("crossY",&yVal,"data_crossings/D");
-  T_crossings->Branch("crossZ",&zVal,"data_crossings/D");
-  T_crossings->Branch("crossDist",&distVal,"data_crossings/D");
-  T_crossings->Branch("crossDistX",&crossDistX,"data_crossings/D");
-  T_crossings->Branch("crossDistY",&crossDistY,"data_crossings/D");
-  T_crossings->Branch("crossDistZ",&crossDistZ,"data_crossings/D");
-  T_crossings->Branch("crossX_mod",&xValDistorted,"data_crossings/D");
-  T_crossings->Branch("crossY_mod",&yValDistorted,"data_crossings/D");
-  T_crossings->Branch("crossZ_mod",&zValDistorted,"data_crossings/D");
-  T_crossings->Branch("crossDist_mod",&distValDistorted,"data_crossings/D");
-  T_crossings->Branch("crossDistX_mod",&crossDistX_mod,"data_crossings/D");
-  T_crossings->Branch("crossDistY_mod",&crossDistY_mod,"data_crossings/D");
-  T_crossings->Branch("crossDistZ_mod",&crossDistZ_mod,"data_crossings/D");
-  T_crossings->Branch("distWeight",&distWeight,"data_crossings/D");
-  T_crossings->Branch("crossType",&crossType,"data_crossings/I");
-  if(saveInfo == 1) {
-    T_crossings->SetDirectory(outputFile);
-  }
-
-  for(Int_t i = 0; i < numLaserTracks; i++)
-  {
-    cout << "LASER-LASER " << i << endl;
-
-    calibTrackA = laserCalibTracks.at(i);
-    if(calibTrackA.track.electrons.size() < 3) continue;
-
-    for(Int_t j = i+1; j < numLaserTracks; j++)
-    {
-      calibTrackB = laserCalibTracks.at(j);
-      if(calibTrackB.track.electrons.size() < 3) continue;
-
-      double dTheta = fabs(ArcCos(((calibTrackA.track.x1-calibTrackA.track.x0)*(calibTrackB.track.x1-calibTrackB.track.x0) + (calibTrackA.track.y1-calibTrackA.track.y0)*(calibTrackB.track.y1-calibTrackB.track.y0) + (calibTrackA.track.z1-calibTrackA.track.z0)*(calibTrackB.track.z1-calibTrackB.track.z0))/(sqrt(pow((calibTrackA.track.x1-calibTrackA.track.x0),2.0)+pow((calibTrackA.track.y1-calibTrackA.track.y0),2.0)+pow((calibTrackA.track.z1-calibTrackA.track.z0),2.0))*sqrt(pow((calibTrackB.track.x1-calibTrackB.track.x0),2.0)+pow((calibTrackB.track.y1-calibTrackB.track.y0),2.0)+pow((calibTrackB.track.z1-calibTrackB.track.z0),2.0)))));
-      if (dTheta > piVal/2.0) {
-        dTheta = piVal - dTheta;
-      }
-      if(dTheta < relAngleCut*(piVal/180.0)) continue;
-
-      POAparams = findClosestPOA(calibTrackA,calibTrackB);
-      distVal = POAparams.at(0);
-      if(isnan(distVal)) continue;
-      
-      if((distVal < 0.0) || (distVal > maxDistFactor*distScale)) continue;
-      
-      POAparamsDistorted = findDistortedClosestPOA(calibTrackA,calibTrackB);
-      distValDistorted = POAparamsDistorted.at(0);
-      if(isnan(distValDistorted)) continue;
-
-      //if(distValDistorted > 3.0*distVal+0.005) continue;
-      if(fabs(distValDistorted-distVal)>0.003) continue;
-
-      distWeight = exp(-1.0*(distVal/distScale));
-      
-      xVal = POAparams.at(1);
-      yVal = POAparams.at(2);
-      zVal = POAparams.at(3);
-      xValDistorted = POAparamsDistorted.at(1);
-      yValDistorted = POAparamsDistorted.at(2);
-      zValDistorted = POAparamsDistorted.at(3);
-
-      crossDistX = POAparams.at(4);
-      crossDistY = POAparams.at(5);
-      crossDistZ = POAparams.at(6);      
-      crossDistX_mod = POAparamsDistorted.at(4);
-      crossDistY_mod = POAparamsDistorted.at(5);
-      crossDistZ_mod = POAparamsDistorted.at(6);      
-      
-      trackNum1 = i;
-      trackNum2 = j;
-      if(saveInfo == 1) {
-        T_crossings->Fill();
-      }
-      
-      xCalibLowIndex = TMath::Floor((xValDistorted/Lx)*nCalibDivisions_x);
-      xCalibHighIndex = TMath::Ceil((xValDistorted/Lx)*nCalibDivisions_x);
-      yCalibLowIndex = TMath::Floor((yValDistorted/Ly)*nCalibDivisions_y);
-      yCalibHighIndex = TMath::Ceil((yValDistorted/Ly)*nCalibDivisions_y);
-      zCalibLowIndex = TMath::Floor((zValDistorted/Lz)*nCalibDivisions_z);
-      zCalibHighIndex = TMath::Ceil((zValDistorted/Lz)*nCalibDivisions_z);
-
-      //cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xCalibLowIndex << " " << yCalibLowIndex << " " << zCalibLowIndex << " " << xCalibHighIndex << " " << yCalibHighIndex << " " << zCalibHighIndex << " " << xCalibFrac << " " << yCalibFrac << " " << zCalibFrac << " " << calibTrackA.track.electrons.size() << " " << calibTrackB.track.electrons.size() << endl;
-      //cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << dTheta*(180.0/piVal) << " Ax1 " << calibTrackA.track.x1 << " Ax0 " << calibTrackA.track.x0 << " Ay1 " << calibTrackA.track.y1 << " Ay0 " << calibTrackA.track.y0 << " Az1 " << calibTrackA.track.z1 << " Az0 " << calibTrackA.track.z0 <<  " Bx1 " << calibTrackB.track.x1 << " Bx0 " << calibTrackB.track.x0 << " By1 " << calibTrackB.track.y1 << " By0 " << calibTrackB.track.y0 << " Bz1 " << calibTrackB.track.z1 << " Bz0 " << calibTrackB.track.z0 << endl;
-      cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << dTheta*(180.0/piVal) << endl;
-
-      xCalibFrac = ((xValDistorted/Lx)*nCalibDivisions_x)-((Double_t) xCalibLowIndex);
-      yCalibFrac = ((yValDistorted/Ly)*nCalibDivisions_y)-((Double_t) yCalibLowIndex);
-      zCalibFrac = ((zValDistorted/Lz)*nCalibDivisions_z)-((Double_t) zCalibLowIndex);
-
-      if(xValDistorted < 0.0) {
-        xCalibLowIndex = 0;
-	xCalibHighIndex = 1;
-	xCalibFrac = 0.0;
-      }
-      else if (xValDistorted > Lx) {
-        xCalibLowIndex = nCalibDivisions_x - 1;
-	xCalibHighIndex = nCalibDivisions_x;
-	xCalibFrac = 1.0;
-      }
-
-      if(yValDistorted < 0.0) {
-        yCalibLowIndex = 0;
-	yCalibHighIndex = 1;
-	yCalibFrac = 0.0;
-      }
-      else if (yValDistorted > Ly) {
-        yCalibLowIndex = nCalibDivisions_y - 1;
-	yCalibHighIndex = nCalibDivisions_y;
-	yCalibFrac = 1.0;
-      }
-
-      if(zValDistorted < 0.0) {
-        zCalibLowIndex = 0;
-	zCalibHighIndex = 1;
-	zCalibFrac = 0.0;
-      }
-      else if (zValDistorted > Lz) {
-        zCalibLowIndex = nCalibDivisions_z - 1;
-	zCalibHighIndex = nCalibDivisions_z;
-	zCalibFrac = 1.0;
-      }
-
-      tempFactor = distWeight*(1.0-xCalibFrac)*(1.0-yCalibFrac)*(1.0-zCalibFrac);
-      calibWeight[xCalibLowIndex][yCalibLowIndex][zCalibLowIndex].push_back(tempFactor);
-      calibDeltaX[xCalibLowIndex][yCalibLowIndex][zCalibLowIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibLowIndex][yCalibLowIndex][zCalibLowIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibLowIndex][yCalibLowIndex][zCalibLowIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*(1.0-xCalibFrac)*(1.0-yCalibFrac)*zCalibFrac;
-      calibWeight[xCalibLowIndex][yCalibLowIndex][zCalibHighIndex].push_back(tempFactor);
-      calibDeltaX[xCalibLowIndex][yCalibLowIndex][zCalibHighIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibLowIndex][yCalibLowIndex][zCalibHighIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibLowIndex][yCalibLowIndex][zCalibHighIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*(1.0-xCalibFrac)*yCalibFrac*(1.0-zCalibFrac);
-      calibWeight[xCalibLowIndex][yCalibHighIndex][zCalibLowIndex].push_back(tempFactor);
-      calibDeltaX[xCalibLowIndex][yCalibHighIndex][zCalibLowIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibLowIndex][yCalibHighIndex][zCalibLowIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibLowIndex][yCalibHighIndex][zCalibLowIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*(1.0-xCalibFrac)*yCalibFrac*zCalibFrac;
-      calibWeight[xCalibLowIndex][yCalibHighIndex][zCalibHighIndex].push_back(tempFactor);
-      calibDeltaX[xCalibLowIndex][yCalibHighIndex][zCalibHighIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibLowIndex][yCalibHighIndex][zCalibHighIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibLowIndex][yCalibHighIndex][zCalibHighIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*xCalibFrac*(1.0-yCalibFrac)*(1.0-zCalibFrac);
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      calibWeight[xCalibHighIndex][yCalibLowIndex][zCalibLowIndex].push_back(tempFactor);
-      calibDeltaX[xCalibHighIndex][yCalibLowIndex][zCalibLowIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibHighIndex][yCalibLowIndex][zCalibLowIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibHighIndex][yCalibLowIndex][zCalibLowIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*xCalibFrac*(1.0-yCalibFrac)*zCalibFrac;
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      calibWeight[xCalibHighIndex][yCalibLowIndex][zCalibHighIndex].push_back(tempFactor);
-      calibDeltaX[xCalibHighIndex][yCalibLowIndex][zCalibHighIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibHighIndex][yCalibLowIndex][zCalibHighIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibHighIndex][yCalibLowIndex][zCalibHighIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*xCalibFrac*yCalibFrac*(1.0-zCalibFrac);
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      calibWeight[xCalibHighIndex][yCalibHighIndex][zCalibLowIndex].push_back(tempFactor);
-      calibDeltaX[xCalibHighIndex][yCalibHighIndex][zCalibLowIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibHighIndex][yCalibHighIndex][zCalibLowIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibHighIndex][yCalibHighIndex][zCalibLowIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*xCalibFrac*yCalibFrac*zCalibFrac;
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      calibWeight[xCalibHighIndex][yCalibHighIndex][zCalibHighIndex].push_back(tempFactor);
-      calibDeltaX[xCalibHighIndex][yCalibHighIndex][zCalibHighIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibHighIndex][yCalibHighIndex][zCalibHighIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibHighIndex][yCalibHighIndex][zCalibHighIndex].push_back((zVal-zValDistorted));
-    }
-  }
-
-  return;
-}
-
-void doLaserCosmicCalib(const vector<calibTrackInfo> &laserCalibTracks, const vector<calibTrackInfo> &cosmicCalibTracks, Double_t distScale, Double_t maxDistFactor, Int_t saveInfo)
-{
-  calibTrackInfo calibTrackA;
-  calibTrackInfo calibTrackB;
-
-  Int_t numLaserTracks = laserCalibTracks.size();
-  Int_t numCosmicTracks = cosmicCalibTracks.size();
-
-  vector<Double_t> POAparams;
-  vector<Double_t> POAparamsDistorted;
-  Double_t distVal;
-  Double_t distValDistorted;
-  Double_t distWeight;
-  Double_t xVal;
-  Double_t yVal;
-  Double_t zVal;
-  Double_t xValDistorted;
-  Double_t yValDistorted;
-  Double_t zValDistorted;
-  Int_t xCalibLowIndex;
-  Int_t xCalibHighIndex;
-  Int_t yCalibLowIndex;
-  Int_t yCalibHighIndex;
-  Int_t zCalibLowIndex;
-  Int_t zCalibHighIndex;
-  Double_t xCalibFrac;
-  Double_t yCalibFrac;
-  Double_t zCalibFrac;
-  Double_t tempFactor;
-
-  Double_t crossDistX;
-  Double_t crossDistY;
-  Double_t crossDistZ;
-  Double_t crossDistX_mod;
-  Double_t crossDistY_mod;
-  Double_t crossDistZ_mod;
-  
-  Int_t trackNum1;
-  Int_t trackNum2;
-  Int_t crossType = 2;
-  
-  TTree *T_crossings = new TTree("SpaCEtree_crossings","SpaCEtree_crossings");
-  T_crossings->Branch("trackNum1",&trackNum1,"data_crossings/I");
-  T_crossings->Branch("trackNum2",&trackNum2,"data_crossings/I");  
-  T_crossings->Branch("crossX",&xVal,"data_crossings/D");
-  T_crossings->Branch("crossY",&yVal,"data_crossings/D");
-  T_crossings->Branch("crossZ",&zVal,"data_crossings/D");
-  T_crossings->Branch("crossDist",&distVal,"data_crossings/D");
-  T_crossings->Branch("crossDistX",&crossDistX,"data_crossings/D");
-  T_crossings->Branch("crossDistY",&crossDistY,"data_crossings/D");
-  T_crossings->Branch("crossDistZ",&crossDistZ,"data_crossings/D");
-  T_crossings->Branch("crossX_mod",&xValDistorted,"data_crossings/D");
-  T_crossings->Branch("crossY_mod",&yValDistorted,"data_crossings/D");
-  T_crossings->Branch("crossZ_mod",&zValDistorted,"data_crossings/D");
-  T_crossings->Branch("crossDist_mod",&distValDistorted,"data_crossings/D");
-  T_crossings->Branch("crossDistX_mod",&crossDistX_mod,"data_crossings/D");
-  T_crossings->Branch("crossDistY_mod",&crossDistY_mod,"data_crossings/D");
-  T_crossings->Branch("crossDistZ_mod",&crossDistZ_mod,"data_crossings/D");
-  T_crossings->Branch("distWeight",&distWeight,"data_crossings/D");
-  T_crossings->Branch("crossType",&crossType,"data_crossings/I");
-  if(saveInfo == 1) {
-    T_crossings->SetDirectory(outputFile);
-  }
-
-  for(Int_t i = 0; i < numLaserTracks; i++)
-  {
-    cout << "LASER-COSMIC " << i << endl;
-
-    calibTrackA = laserCalibTracks.at(i);
-    if(calibTrackA.track.electrons.size() < 3) continue;
-
-    for(Int_t j = 0; j < numCosmicTracks; j++)
-    {
-      calibTrackB = cosmicCalibTracks.at(j);
-      if(calibTrackB.track.electrons.size() < 3) continue;
-
-      double dTheta = fabs(ArcCos(((calibTrackA.track.x1-calibTrackA.track.x0)*(calibTrackB.track.x1-calibTrackB.track.x0) + (calibTrackA.track.y1-calibTrackA.track.y0)*(calibTrackB.track.y1-calibTrackB.track.y0) + (calibTrackA.track.z1-calibTrackA.track.z0)*(calibTrackB.track.z1-calibTrackB.track.z0))/(sqrt(pow((calibTrackA.track.x1-calibTrackA.track.x0),2.0)+pow((calibTrackA.track.y1-calibTrackA.track.y0),2.0)+pow((calibTrackA.track.z1-calibTrackA.track.z0),2.0))*sqrt(pow((calibTrackB.track.x1-calibTrackB.track.x0),2.0)+pow((calibTrackB.track.y1-calibTrackB.track.y0),2.0)+pow((calibTrackB.track.z1-calibTrackB.track.z0),2.0)))));
-      if (dTheta > piVal/2.0) {
-        dTheta = piVal - dTheta;
-      }
-      if(dTheta < relAngleCut*(piVal/180.0)) continue;
-      
-      POAparams = findClosestPOA(calibTrackA,calibTrackB);
-      distVal = POAparams.at(0);
-      if(isnan(distVal)) continue;
-      
-      if((distVal < 0.0) || (distVal > maxDistFactor*distScale)) continue;
-
-      POAparamsDistorted = findDistortedClosestPOA(calibTrackA,calibTrackB);
-      distValDistorted = POAparamsDistorted.at(0);
-      if(isnan(distValDistorted)) continue;
-
-      //if(distValDistorted > 3.0*distVal+0.005) continue;
-      if(fabs(distValDistorted-distVal)>0.003) continue;
-      
-      distWeight = exp(-1.0*(distVal/distScale));
-      
-      xVal = POAparams.at(1);
-      yVal = POAparams.at(2);
-      zVal = POAparams.at(3);
-      xValDistorted = POAparamsDistorted.at(1);
-      yValDistorted = POAparamsDistorted.at(2);
-      zValDistorted = POAparamsDistorted.at(3);
-
-      crossDistX = POAparams.at(4);
-      crossDistY = POAparams.at(5);
-      crossDistZ = POAparams.at(6);      
-      crossDistX_mod = POAparamsDistorted.at(4);
-      crossDistY_mod = POAparamsDistorted.at(5);
-      crossDistZ_mod = POAparamsDistorted.at(6);      
-
-      trackNum1 = i;
-      trackNum2 = j;
-      if(saveInfo == 1) {
-        T_crossings->Fill();
-      }
-
-      xCalibLowIndex = TMath::Floor((xValDistorted/Lx)*nCalibDivisions_x);
-      xCalibHighIndex = TMath::Ceil((xValDistorted/Lx)*nCalibDivisions_x);
-      yCalibLowIndex = TMath::Floor((yValDistorted/Ly)*nCalibDivisions_y);
-      yCalibHighIndex = TMath::Ceil((yValDistorted/Ly)*nCalibDivisions_y);
-      zCalibLowIndex = TMath::Floor((zValDistorted/Lz)*nCalibDivisions_z);
-      zCalibHighIndex = TMath::Ceil((zValDistorted/Lz)*nCalibDivisions_z);
-
-      //cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xCalibLowIndex << " " << yCalibLowIndex << " " << zCalibLowIndex << " " << xCalibHighIndex << " " << yCalibHighIndex << " " << zCalibHighIndex << " " << xCalibFrac << " " << yCalibFrac << " " << zCalibFrac << " " << calibTrackA.track.electrons.size() << " " << calibTrackB.track.electrons.size() << endl;
-      //cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << dTheta*(180.0/piVal) << " Ax1 " << calibTrackA.track.x1 << " Ax0 " << calibTrackA.track.x0 << " Ay1 " << calibTrackA.track.y1 << " Ay0 " << calibTrackA.track.y0 << " Az1 " << calibTrackA.track.z1 << " Az0 " << calibTrackA.track.z0 <<  " Bx1 " << calibTrackB.track.x1 << " Bx0 " << calibTrackB.track.x0 << " By1 " << calibTrackB.track.y1 << " By0 " << calibTrackB.track.y0 << " Bz1 " << calibTrackB.track.z1 << " Bz0 " << calibTrackB.track.z0 << endl;
-      cout << "  " << j << " " << distVal << " " << distValDistorted << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << dTheta*(180.0/piVal) << endl;
-
-      xCalibFrac = ((xValDistorted/Lx)*nCalibDivisions_x)-((Double_t) xCalibLowIndex);
-      yCalibFrac = ((yValDistorted/Ly)*nCalibDivisions_y)-((Double_t) yCalibLowIndex);
-      zCalibFrac = ((zValDistorted/Lz)*nCalibDivisions_z)-((Double_t) zCalibLowIndex);
-
-      if(xValDistorted < 0.0) {
-        xCalibLowIndex = 0;
-	xCalibHighIndex = 1;
-	xCalibFrac = 0.0;
-      }
-      else if (xValDistorted > Lx) {
-        xCalibLowIndex = nCalibDivisions_x - 1;
-	xCalibHighIndex = nCalibDivisions_x;
-	xCalibFrac = 1.0;
-      }
-
-      if(yValDistorted < 0.0) {
-        yCalibLowIndex = 0;
-	yCalibHighIndex = 1;
-	yCalibFrac = 0.0;
-      }
-      else if (yValDistorted > Ly) {
-        yCalibLowIndex = nCalibDivisions_y - 1;
-	yCalibHighIndex = nCalibDivisions_y;
-	yCalibFrac = 1.0;
-      }
-
-      if(zValDistorted < 0.0) {
-        zCalibLowIndex = 0;
-	zCalibHighIndex = 1;
-	zCalibFrac = 0.0;
-      }
-      else if (zValDistorted > Lz) {
-        zCalibLowIndex = nCalibDivisions_z - 1;
-	zCalibHighIndex = nCalibDivisions_z;
-	zCalibFrac = 1.0;
-      }
-
-      tempFactor = distWeight*(1.0-xCalibFrac)*(1.0-yCalibFrac)*(1.0-zCalibFrac);
-      calibWeight[xCalibLowIndex][yCalibLowIndex][zCalibLowIndex].push_back(tempFactor);
-      calibDeltaX[xCalibLowIndex][yCalibLowIndex][zCalibLowIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibLowIndex][yCalibLowIndex][zCalibLowIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibLowIndex][yCalibLowIndex][zCalibLowIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*(1.0-xCalibFrac)*(1.0-yCalibFrac)*zCalibFrac;
-      calibWeight[xCalibLowIndex][yCalibLowIndex][zCalibHighIndex].push_back(tempFactor);
-      calibDeltaX[xCalibLowIndex][yCalibLowIndex][zCalibHighIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibLowIndex][yCalibLowIndex][zCalibHighIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibLowIndex][yCalibLowIndex][zCalibHighIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*(1.0-xCalibFrac)*yCalibFrac*(1.0-zCalibFrac);
-      calibWeight[xCalibLowIndex][yCalibHighIndex][zCalibLowIndex].push_back(tempFactor);
-      calibDeltaX[xCalibLowIndex][yCalibHighIndex][zCalibLowIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibLowIndex][yCalibHighIndex][zCalibLowIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibLowIndex][yCalibHighIndex][zCalibLowIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*(1.0-xCalibFrac)*yCalibFrac*zCalibFrac;
-      calibWeight[xCalibLowIndex][yCalibHighIndex][zCalibHighIndex].push_back(tempFactor);
-      calibDeltaX[xCalibLowIndex][yCalibHighIndex][zCalibHighIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibLowIndex][yCalibHighIndex][zCalibHighIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibLowIndex][yCalibHighIndex][zCalibHighIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*xCalibFrac*(1.0-yCalibFrac)*(1.0-zCalibFrac);
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      calibWeight[xCalibHighIndex][yCalibLowIndex][zCalibLowIndex].push_back(tempFactor);
-      calibDeltaX[xCalibHighIndex][yCalibLowIndex][zCalibLowIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibHighIndex][yCalibLowIndex][zCalibLowIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibHighIndex][yCalibLowIndex][zCalibLowIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*xCalibFrac*(1.0-yCalibFrac)*zCalibFrac;
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      calibWeight[xCalibHighIndex][yCalibLowIndex][zCalibHighIndex].push_back(tempFactor);
-      calibDeltaX[xCalibHighIndex][yCalibLowIndex][zCalibHighIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibHighIndex][yCalibLowIndex][zCalibHighIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibHighIndex][yCalibLowIndex][zCalibHighIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*xCalibFrac*yCalibFrac*(1.0-zCalibFrac);
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      calibWeight[xCalibHighIndex][yCalibHighIndex][zCalibLowIndex].push_back(tempFactor);
-      calibDeltaX[xCalibHighIndex][yCalibHighIndex][zCalibLowIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibHighIndex][yCalibHighIndex][zCalibLowIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibHighIndex][yCalibHighIndex][zCalibLowIndex].push_back((zVal-zValDistorted));
-
-      tempFactor = distWeight*xCalibFrac*yCalibFrac*zCalibFrac;
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      calibWeight[xCalibHighIndex][yCalibHighIndex][zCalibHighIndex].push_back(tempFactor);
-      calibDeltaX[xCalibHighIndex][yCalibHighIndex][zCalibHighIndex].push_back((xVal-xValDistorted));
-      calibDeltaY[xCalibHighIndex][yCalibHighIndex][zCalibHighIndex].push_back((yVal-yValDistorted));
-      calibDeltaZ[xCalibHighIndex][yCalibHighIndex][zCalibHighIndex].push_back((zVal-zValDistorted));
-    }
-  }
-
-  return;
 }
 
 void doCosmicCosmicCalib(const vector<calibTrackInfo> &cosmicCalibTracks, Double_t distScale, Double_t maxDistFactor, Int_t saveInfo)
@@ -2320,11 +1177,11 @@ void doCosmicCosmicCalib(const vector<calibTrackInfo> &cosmicCalibTracks, Double
   return;
 }
 
-void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo> &cosmicTracks, Double_t distScale, Double_t maxDistFactor, Int_t numIterations, Int_t saveInfo)
+void doCalibration(const vector<trackInfo> &cosmicTracks, Double_t distScale, Double_t maxDistFactor, Int_t numIterations, Int_t saveInfo)
 {
-  bulkCalibHistDeltaX->Reset();
-  bulkCalibHistDeltaY->Reset();
-  bulkCalibHistDeltaZ->Reset();
+  ResultDeltaX->Reset();
+  ResultDeltaY->Reset();
+  ResultDeltaZ->Reset();
 
   for(Int_t x = 0; x <= nCalibDivisions_x; x++)
   {
@@ -2340,7 +1197,6 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
     }
   }
   
-  vector<calibTrackInfo> laserCalibTracks = makeCalibTracks(laserTracks);
   vector<calibTrackInfo> cosmicCalibTracks = makeCalibTracks(cosmicTracks);
 
   Double_t x_true, y_true, z_true;
@@ -2365,8 +1221,6 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
     T_calib->SetDirectory(outputFile);
   }
 
-  //doLaserLaserCalib(laserCalibTracks,distScale,maxDistFactor,saveInfo);
-  //doLaserCosmicCalib(laserCalibTracks,cosmicCalibTracks,distScale,maxDistFactor,saveInfo);
   doCosmicCosmicCalib(cosmicCalibTracks,distScale,maxDistFactor,saveInfo);
 
   x_reco = -1.0*Lx/nCalibDivisions_x;
@@ -2434,9 +1288,9 @@ void doCalibration(const vector<trackInfo> &laserTracks, const vector<trackInfo>
           z_true = z_reco;
 	}
     
-        bulkCalibHistDeltaX->SetBinContent(x+1,y+1,z+1,Dx);
-        bulkCalibHistDeltaY->SetBinContent(x+1,y+1,z+1,Dy);
-        bulkCalibHistDeltaZ->SetBinContent(x+1,y+1,z+1,Dz);
+        ResultDeltaX->SetBinContent(x+1,y+1,z+1,Dx);
+        ResultDeltaY->SetBinContent(x+1,y+1,z+1,Dy);
+        ResultDeltaZ->SetBinContent(x+1,y+1,z+1,Dz);
 
         if(saveInfo == 1) {
           T_calib->Fill();
@@ -2518,138 +1372,48 @@ void saveTrackInfo(const vector<trackInfo> &tracks)
   return;
 }
 
-void loadTruthMap()
+void loadMaps()
 {
-  TFile* fileTruth = new TFile("data/dispOutput_MicroBooNE_E273.root");
+  TFile* simInterpFile = new TFile(simInterpFileName,"READ");
 
-  TTreeReader reader("SpaCEtree_bkwdDisp", fileTruth);
-  TTreeReaderValue<Double_t> reco_x(reader, "x_reco.data_bkwdDisp");
-  TTreeReaderValue<Double_t> reco_y(reader, "y_reco.data_bkwdDisp");
-  TTreeReaderValue<Double_t> reco_z(reader, "z_reco.data_bkwdDisp");
-  TTreeReaderValue<Double_t> Dx(reader, "Dx.data_bkwdDisp");
-  TTreeReaderValue<Double_t> Dy(reader, "Dy.data_bkwdDisp");
-  TTreeReaderValue<Double_t> Dz(reader, "Dz.data_bkwdDisp");
-  TTreeReaderValue<Int_t> elecFate(reader, "elecFate.data_bkwdDisp");
+  TH3F* truefwd_Dx = (TH3F*) simInterpFile->Get("TrueFwd_Displacement_X");
+  TH3F* truefwd_Dy = (TH3F*) simInterpFile->Get("TrueFwd_Displacement_Y");
+  TH3F* truefwd_Dz = (TH3F*) simInterpFile->Get("TrueFwd_Displacement_Z");
 
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
+  TH3F* truebkwd_Dx = (TH3F*) simInterpFile->Get("TrueBkwd_Displacement_X");
+  TH3F* truebkwd_Dy = (TH3F*) simInterpFile->Get("TrueBkwd_Displacement_Y");
+  TH3F* truebkwd_Dz = (TH3F*) simInterpFile->Get("TrueBkwd_Displacement_Z");
+
+  TH3F* recofwd_Dx = (TH3F*) simInterpFile->Get("RecoFwd_Displacement_X");
+  TH3F* recofwd_Dy = (TH3F*) simInterpFile->Get("RecoFwd_Displacement_Y");
+  TH3F* recofwd_Dz = (TH3F*) simInterpFile->Get("RecoFwd_Displacement_Z");
+
+  TH3F* recobkwd_Dx = (TH3F*) simInterpFile->Get("RecoBkwd_Displacement_X");
+  TH3F* recobkwd_Dy = (TH3F*) simInterpFile->Get("RecoBkwd_Displacement_Y");
+  TH3F* recobkwd_Dz = (TH3F*) simInterpFile->Get("RecoBkwd_Displacement_Z");
+
+
+  for(Int_t x = 1; x <= nCalibDivisions_x+1; x++)
   {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
+    for(Int_t y = 1; y <= nCalibDivisions_y+1; y++)
     {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        trueDeltaX[x][y][z] = 0.0;
-        trueDeltaY[x][y][z] = 0.0;
-        trueDeltaZ[x][y][z] = 0.0;
-      }
-    }
-  }
+      for(Int_t z = 1; z <= nCalibDivisions_z+1; z++)
+      {        
+        TrueFwdDeltaX->SetBinContent(x,y,z,-0.01*truefwd_Dx->GetBinContent(nCalibDivisions_x+2-x,y,z));
+        TrueFwdDeltaY->SetBinContent(x,y,z,0.01*truefwd_Dy->GetBinContent(nCalibDivisions_x+2-x,y,z));
+        TrueFwdDeltaZ->SetBinContent(x,y,z,0.01*truefwd_Dz->GetBinContent(nCalibDivisions_x+2-x,y,z));
 
-  while (reader.Next())
-  {
-    if (*elecFate == 1) {
-      trueDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dx;
-      trueDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dy;
-      trueDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = *Dz;
-    }
-    else {
-      trueDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -999;
-      trueDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -999;
-      trueDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(*reco_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*reco_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*reco_z/Lz))] = -999;
-    }
-  }
+        TrueBkwdDeltaX->SetBinContent(x,y,z,-0.01*truebkwd_Dx->GetBinContent(nCalibDivisions_x+2-x,y,z));
+        TrueBkwdDeltaY->SetBinContent(x,y,z,0.01*truebkwd_Dy->GetBinContent(nCalibDivisions_x+2-x,y,z));
+        TrueBkwdDeltaZ->SetBinContent(x,y,z,0.01*truebkwd_Dz->GetBinContent(nCalibDivisions_x+2-x,y,z));
 
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        if (trueDeltaX[x][y][z] == -999) {
-          if (y == nCalibDivisions_y-1) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][nCalibDivisions_y-2][z];
-            trueDeltaY[x][y][z] = trueDeltaY[x][nCalibDivisions_y-2][z];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][nCalibDivisions_y-2][z];
-          }
-          else if (y == 1) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][2][z];
-            trueDeltaY[x][y][z] = trueDeltaY[x][2][z];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][2][z];
-          }
-          else if (z == nCalibDivisions_z-1) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][y][nCalibDivisions_z-2];
-            trueDeltaY[x][y][z] = trueDeltaY[x][y][nCalibDivisions_z-2];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][y][nCalibDivisions_z-2];
-          }
-          else if (z == 1) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][y][2];
-            trueDeltaY[x][y][z] = trueDeltaY[x][y][2];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][y][2];
-          }
-	}
-      }
-    }
-  }
+        RecoFwdDeltaX->SetBinContent(x,y,z,-0.01*recofwd_Dx->GetBinContent(nCalibDivisions_x+2-x,y,z));
+        RecoFwdDeltaY->SetBinContent(x,y,z,0.01*recofwd_Dy->GetBinContent(nCalibDivisions_x+2-x,y,z));
+        RecoFwdDeltaZ->SetBinContent(x,y,z,0.01*recofwd_Dz->GetBinContent(nCalibDivisions_x+2-x,y,z));
 
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        if (trueDeltaX[x][y][z] == -999) {
-          if ((y == nCalibDivisions_y) && (z == 0)) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][nCalibDivisions_y-1][1];
-            trueDeltaY[x][y][z] = trueDeltaY[x][nCalibDivisions_y-1][1];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][nCalibDivisions_y-1][1];
-          }
-          else if ((y == nCalibDivisions_y) && (z == nCalibDivisions_z)) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
-            trueDeltaY[x][y][z] = trueDeltaY[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
-          }
-          else if ((y == 0) && (z == 0)) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][1][1];
-            trueDeltaY[x][y][z] = trueDeltaY[x][1][1];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][1][1];
-          }
-          else if ((y == 0) && (z == nCalibDivisions_z)) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][1][nCalibDivisions_z-1];
-            trueDeltaY[x][y][z] = trueDeltaY[x][1][nCalibDivisions_z-1];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][1][nCalibDivisions_z-1];
-          }
-	}
-      }
-    }
-  }
-
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        if (trueDeltaX[x][y][z] == -999) {
-          if (y == nCalibDivisions_y) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][nCalibDivisions_y-1][z];
-            trueDeltaY[x][y][z] = trueDeltaY[x][nCalibDivisions_y-1][z];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][nCalibDivisions_y-1][z];
-          }
-          else if (y == 0) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][1][z];
-            trueDeltaY[x][y][z] = trueDeltaY[x][1][z];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][1][z];
-          }
-          else if (z == nCalibDivisions_z) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][y][nCalibDivisions_z-1];
-            trueDeltaY[x][y][z] = trueDeltaY[x][y][nCalibDivisions_z-1];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][y][nCalibDivisions_z-1];
-          }
-          else if (z == 0) {
-            trueDeltaX[x][y][z] = trueDeltaX[x][y][1];
-            trueDeltaY[x][y][z] = trueDeltaY[x][y][1];
-            trueDeltaZ[x][y][z] = trueDeltaZ[x][y][1];
-          }
-	}
+        RecoBkwdDeltaX->SetBinContent(x,y,z,-0.01*recobkwd_Dx->GetBinContent(nCalibDivisions_x+2-x,y,z));
+        RecoBkwdDeltaY->SetBinContent(x,y,z,0.01*recobkwd_Dy->GetBinContent(nCalibDivisions_x+2-x,y,z));
+        RecoBkwdDeltaZ->SetBinContent(x,y,z,0.01*recobkwd_Dz->GetBinContent(nCalibDivisions_x+2-x,y,z));
       }
     }
   }
@@ -2657,1945 +1421,7 @@ void loadTruthMap()
   return;
 }
 
-Double_t getTruthOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp)
-{
-  Double_t offset = 0.0;
-  
-  if (xVal < 0.0) {
-    xVal = 0.0;
-  }
-  if (xVal > Lx) {
-    xVal = Lx;
-  }
-
-  if (yVal < 0.0) {
-    yVal = 0.0;
-  }
-  if (yVal > Ly) {
-    yVal = Ly;
-  }
-
-  if (zVal < 0.0) {
-    zVal = 0.0;
-  }
-  if (zVal > Lz) {
-    zVal = Lz;
-  }
-
-  if (comp == 1) {
-    offset = ScaleFactorX*trueDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
-  }
-  else if (comp == 2) {
-    offset = ScaleFactorY*trueDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
-  }
-  else if (comp == 3) {
-    offset = ScaleFactorZ*trueDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
-  }
-  
-  if ((comp == 1) && (offset < 0.0)) {
-    offset = 0.0;
-  }
-
-  return offset;
-}
-
-vector<Double_t> getTruthOffsets(Double_t xVal, Double_t yVal, Double_t zVal)
-{
-  vector<Double_t> offsets;
-  offsets.push_back(getTruthOffset(xVal,yVal,zVal,1));
-  offsets.push_back(getTruthOffset(xVal,yVal,zVal,2));
-  offsets.push_back(getTruthOffset(xVal,yVal,zVal,3));
-
-  return offsets;
-}
-
-void loadTruthFwdMap()
-{
-  TFile* fileTruth = new TFile("data/dispOutput_MicroBooNE_E273.root");
-
-  TTreeReader reader("SpaCEtree_fwdDisp", fileTruth);
-  TTreeReaderValue<Double_t> true_x(reader, "x_true.data_fwdDisp");
-  TTreeReaderValue<Double_t> true_y(reader, "y_true.data_fwdDisp");
-  TTreeReaderValue<Double_t> true_z(reader, "z_true.data_fwdDisp");
-  TTreeReaderValue<Double_t> Dx(reader, "Dx.data_fwdDisp");
-  TTreeReaderValue<Double_t> Dy(reader, "Dy.data_fwdDisp");
-  TTreeReaderValue<Double_t> Dz(reader, "Dz.data_fwdDisp");
-  TTreeReaderValue<Int_t> elecFate(reader, "elecFate.data_fwdDisp");
-
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        trueFwdDeltaX[x][y][z] = 0.0;
-        trueFwdDeltaY[x][y][z] = 0.0;
-        trueFwdDeltaZ[x][y][z] = 0.0;
-      }
-    }
-  }
-
-  while (reader.Next())
-  {
-    if (*elecFate == 1) {
-      trueFwdDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(*true_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*true_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*true_z/Lz))] = *Dx;
-      trueFwdDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(*true_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*true_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*true_z/Lz))] = *Dy;
-      trueFwdDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(*true_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*true_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*true_z/Lz))] = *Dz;
-    }
-    else {
-      trueFwdDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(*true_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*true_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*true_z/Lz))] = -999;
-      trueFwdDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(*true_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*true_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*true_z/Lz))] = -999;
-      trueFwdDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(*true_x/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(*true_y/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(*true_z/Lz))] = -999;
-    }
-  }
-
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        if (trueFwdDeltaX[x][y][z] == -999) {
-          if (y == nCalibDivisions_y-1) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][nCalibDivisions_y-2][z];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][nCalibDivisions_y-2][z];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][nCalibDivisions_y-2][z];
-          }
-          else if (y == 1) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][2][z];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][2][z];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][2][z];
-          }
-          else if (z == nCalibDivisions_z-1) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][y][nCalibDivisions_z-2];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][y][nCalibDivisions_z-2];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][y][nCalibDivisions_z-2];
-          }
-          else if (z == 1) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][y][2];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][y][2];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][y][2];
-          }
-	}
-      }
-    }
-  }
-
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        if (trueFwdDeltaX[x][y][z] == -999) {
-          if ((y == nCalibDivisions_y) && (z == 0)) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][nCalibDivisions_y-1][1];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][nCalibDivisions_y-1][1];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][nCalibDivisions_y-1][1];
-          }
-          else if ((y == nCalibDivisions_y) && (z == nCalibDivisions_z)) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][nCalibDivisions_y-1][nCalibDivisions_z-1];
-          }
-          else if ((y == 0) && (z == 0)) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][1][1];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][1][1];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][1][1];
-          }
-          else if ((y == 0) && (z == nCalibDivisions_z)) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][1][nCalibDivisions_z-1];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][1][nCalibDivisions_z-1];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][1][nCalibDivisions_z-1];
-          }
-	}
-      }
-    }
-  }
-
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        if (trueFwdDeltaX[x][y][z] == -999) {
-          if (y == nCalibDivisions_y) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][nCalibDivisions_y-1][z];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][nCalibDivisions_y-1][z];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][nCalibDivisions_y-1][z];
-          }
-          else if (y == 0) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][1][z];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][1][z];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][1][z];
-          }
-          else if (z == nCalibDivisions_z) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][y][nCalibDivisions_z-1];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][y][nCalibDivisions_z-1];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][y][nCalibDivisions_z-1];
-          }
-          else if (z == 0) {
-            trueFwdDeltaX[x][y][z] = trueFwdDeltaX[x][y][1];
-            trueFwdDeltaY[x][y][z] = trueFwdDeltaY[x][y][1];
-            trueFwdDeltaZ[x][y][z] = trueFwdDeltaZ[x][y][1];
-          }
-	}
-      }
-    }
-  }
-
-  return;
-}
-
-Double_t getTruthFwdOffset(Double_t xVal, Double_t yVal, Double_t zVal, int comp)
-{
-  Double_t offset = 0.0;
-  
-  if (xVal < 0.0) {
-    xVal = 0.0;
-  }
-  if (xVal > Lx) {
-    xVal = Lx;
-  }
-
-  if (yVal < 0.0) {
-    yVal = 0.0;
-  }
-  if (yVal > Ly) {
-    yVal = Ly;
-  }
-
-  if (zVal < 0.0) {
-    zVal = 0.0;
-  }
-  if (zVal > Lz) {
-    zVal = Lz;
-  }
-
-  if (comp == 1) {
-    offset = ScaleFactorX*trueFwdDeltaX[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
-  }
-  else if (comp == 2) {
-    offset = ScaleFactorY*trueFwdDeltaY[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
-  }
-  else if (comp == 3) {
-    offset = ScaleFactorZ*trueFwdDeltaZ[(Int_t)TMath::Nint(nCalibDivisions_x*(xVal/Lx))][(Int_t)TMath::Nint(nCalibDivisions_y*(yVal/Ly))][(Int_t)TMath::Nint(nCalibDivisions_z*(zVal/Lz))];
-  }
-  
-  if ((comp == 1) && (offset > 0.0)) {
-    offset = 0.0;
-  }
-
-  return offset;
-}
-
-vector<Double_t> getTruthFwdOffsets(Double_t xVal, Double_t yVal, Double_t zVal)
-{
-  vector<Double_t> fwdOffsets;
-  fwdOffsets.push_back(getTruthFwdOffset(xVal,yVal,zVal,1));
-  fwdOffsets.push_back(getTruthFwdOffset(xVal,yVal,zVal,2));
-  fwdOffsets.push_back(getTruthFwdOffset(xVal,yVal,zVal,3));
-
-  return fwdOffsets;
-}
-
-vector<Double_t> findCathodeOffsets(Double_t yVal, Double_t zVal)
-{
-  Double_t minMetric = 100000000.0;
-  
-  Double_t yValNewBest;
-  Double_t zValNewBest;
-  for(int j = 0; j <= 50; j++)
-    for(int k = 0; k <= 50; k++)
-    {
-      Double_t yValNew = (j/50.0)*Ly;
-      Double_t zValNew = (k/50.0)*Lz;
-    	
-      vector<Double_t> fwdOffsets = getTruthFwdOffsets(TrueCathode+OffsetCathodeReco/2.0,yValNew,zValNew);
-    	
-      Double_t metric = sqrt(pow(yValNew+fwdOffsets.at(1)-yVal,2.0)+pow(zValNew+fwdOffsets.at(2)-zVal,2.0));
-
-      if(metric < minMetric)
-      {
-        minMetric = metric;
-        yValNewBest = yValNew;
-        zValNewBest = zValNew;
-      }
-    }
-
-  Double_t yValNewBest2;
-  Double_t zValNewBest2;
-  for(int j = -20; j <= 20; j++)
-    for(int k = -20; k <= 20; k++)
-    {
-      Double_t yValNew = yValNewBest + (j/2000.0)*Ly;
-      Double_t zValNew = zValNewBest + (k/2000.0)*Lz;
-    	
-      vector<Double_t> fwdOffsets = getTruthFwdOffsets(TrueCathode+OffsetCathodeReco/2.0,yValNew,zValNew);
-    	
-      Double_t metric = sqrt(pow(yValNew+fwdOffsets.at(1)-yVal,2.0)+pow(zValNew+fwdOffsets.at(2)-zVal,2.0));
-
-      if(metric < minMetric)
-      {
-        minMetric = metric;
-        yValNewBest2 = yValNew;
-        zValNewBest2 = zValNew;
-      }
-    }
-
-  vector<Double_t> finalFwdOffsets = getTruthFwdOffsets(TrueCathode+OffsetCathodeReco/2.0,yValNewBest2,zValNewBest2);
-
-  return finalFwdOffsets;
-}
-
-void doCalibFaces(const vector<trackInfo> &cosmicTracks, Int_t minTrackPoints, Int_t numTrackSegPoints, Double_t minWeight, Int_t minEntries, Int_t minMaxBin, Int_t saveInfo)
-{
-  const double bufferDist = 0.05;
-
-  faceCalibHistTopDeltaX->Reset();
-  faceCalibHistTopDeltaY->Reset();
-  faceCalibHistTopDeltaZ->Reset();
-    
-  faceCalibHistBottomDeltaX->Reset();
-  faceCalibHistBottomDeltaY->Reset();
-  faceCalibHistBottomDeltaZ->Reset();
-
-  faceCalibHistUpstreamDeltaX->Reset();
-  faceCalibHistUpstreamDeltaY->Reset();
-  faceCalibHistUpstreamDeltaZ->Reset();
-
-  faceCalibHistDownstreamDeltaX->Reset();
-  faceCalibHistDownstreamDeltaY->Reset();
-  faceCalibHistDownstreamDeltaZ->Reset();
-
-  faceCalibHistCathodeDeltaX->Reset();
-  faceCalibHistCathodeDeltaY->Reset();
-  faceCalibHistCathodeDeltaZ->Reset();
-
-  TH1F *hists_Top_dX[nCalibDivisions_x+1][nCalibDivisions_z+1];
-  TH1F *hists_Top_dY[nCalibDivisions_x+1][nCalibDivisions_z+1];
-  TH1F *hists_Top_dZ[nCalibDivisions_x+1][nCalibDivisions_z+1];
-    
-  TH1F *hists_Bottom_dX[nCalibDivisions_x+1][nCalibDivisions_z+1];
-  TH1F *hists_Bottom_dY[nCalibDivisions_x+1][nCalibDivisions_z+1];
-  TH1F *hists_Bottom_dZ[nCalibDivisions_x+1][nCalibDivisions_z+1];
-
-  TH1F *hists_Upstream_dX[nCalibDivisions_x+1][nCalibDivisions_y+1];
-  TH1F *hists_Upstream_dY[nCalibDivisions_x+1][nCalibDivisions_y+1];
-  TH1F *hists_Upstream_dZ[nCalibDivisions_x+1][nCalibDivisions_y+1];
-    
-  TH1F *hists_Downstream_dX[nCalibDivisions_x+1][nCalibDivisions_y+1];
-  TH1F *hists_Downstream_dY[nCalibDivisions_x+1][nCalibDivisions_y+1];
-  TH1F *hists_Downstream_dZ[nCalibDivisions_x+1][nCalibDivisions_y+1];
-
-  TH1F *hists_Cathode_dX[nCalibDivisions_y+1][nCalibDivisions_z+1];
-  TH1F *hists_Cathode_dY[nCalibDivisions_y+1][nCalibDivisions_z+1];
-  TH1F *hists_Cathode_dZ[nCalibDivisions_y+1][nCalibDivisions_z+1];
-    
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-    {
-      calibTopDeltaX[x][z] = 0.0;
-      calibTopDeltaY[x][z] = 0.0;
-      calibTopDeltaZ[x][z] = 0.0;
-  
-      TH1F *tempHist_Top_dX = new TH1F(Form("tempHist_Top_dX_%d_%d",x,z),"",251,-0.251,0.251);
-      TH1F *tempHist_Top_dY = new TH1F(Form("tempHist_Top_dY_%d_%d",x,z),"",251,-0.251,0.251);
-      TH1F *tempHist_Top_dZ = new TH1F(Form("tempHist_Top_dZ_%d_%d",x,z),"",251,-0.251,0.251);
-      tempHist_Top_dX->SetDirectory(0);
-      tempHist_Top_dY->SetDirectory(0);
-      tempHist_Top_dZ->SetDirectory(0);
-      hists_Top_dX[x][z] = tempHist_Top_dX;
-      hists_Top_dY[x][z] = tempHist_Top_dY;
-      hists_Top_dZ[x][z] = tempHist_Top_dZ;
-      
-      calibBottomDeltaX[x][z] = 0.0;
-      calibBottomDeltaY[x][z] = 0.0;
-      calibBottomDeltaZ[x][z] = 0.0;
-  
-      TH1F *tempHist_Bottom_dX = new TH1F(Form("tempHist_Bottom_dX_%d_%d",x,z),"",251,-0.251,0.251);
-      TH1F *tempHist_Bottom_dY = new TH1F(Form("tempHist_Bottom_dY_%d_%d",x,z),"",251,-0.251,0.251);
-      TH1F *tempHist_Bottom_dZ = new TH1F(Form("tempHist_Bottom_dZ_%d_%d",x,z),"",251,-0.251,0.251);
-      tempHist_Bottom_dX->SetDirectory(0);
-      tempHist_Bottom_dY->SetDirectory(0);
-      tempHist_Bottom_dZ->SetDirectory(0);
-      hists_Bottom_dX[x][z] = tempHist_Bottom_dX;
-      hists_Bottom_dY[x][z] = tempHist_Bottom_dY;
-      hists_Bottom_dZ[x][z] = tempHist_Bottom_dZ;
-    }
-  }
-  
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      calibUpstreamDeltaX[x][y] = 0.0;
-      calibUpstreamDeltaY[x][y] = 0.0;
-      calibUpstreamDeltaZ[x][y] = 0.0;
-  
-      TH1F *tempHist_Upstream_dX = new TH1F(Form("tempHist_Upstream_dX_%d_%d",x,y),"",251,-0.251,0.251);
-      TH1F *tempHist_Upstream_dY = new TH1F(Form("tempHist_Upstream_dY_%d_%d",x,y),"",251,-0.251,0.251);
-      TH1F *tempHist_Upstream_dZ = new TH1F(Form("tempHist_Upstream_dZ_%d_%d",x,y),"",251,-0.251,0.251);
-      tempHist_Upstream_dX->SetDirectory(0);
-      tempHist_Upstream_dY->SetDirectory(0);
-      tempHist_Upstream_dZ->SetDirectory(0);
-      hists_Upstream_dX[x][y] = tempHist_Upstream_dX;
-      hists_Upstream_dY[x][y] = tempHist_Upstream_dY;
-      hists_Upstream_dZ[x][y] = tempHist_Upstream_dZ;
-  
-      calibDownstreamDeltaX[x][y] = 0.0;
-      calibDownstreamDeltaY[x][y] = 0.0;
-      calibDownstreamDeltaZ[x][y] = 0.0;
-  
-      TH1F *tempHist_Downstream_dX = new TH1F(Form("tempHist_Downstream_dX_%d_%d",x,y),"",251,-0.251,0.251);
-      TH1F *tempHist_Downstream_dY = new TH1F(Form("tempHist_Downstream_dY_%d_%d",x,y),"",251,-0.251,0.251);
-      TH1F *tempHist_Downstream_dZ = new TH1F(Form("tempHist_Downstream_dZ_%d_%d",x,y),"",251,-0.251,0.251);
-      tempHist_Downstream_dX->SetDirectory(0);
-      tempHist_Downstream_dY->SetDirectory(0);
-      tempHist_Downstream_dZ->SetDirectory(0);
-      hists_Downstream_dX[x][y] = tempHist_Downstream_dX;
-      hists_Downstream_dY[x][y] = tempHist_Downstream_dY;
-      hists_Downstream_dZ[x][y] = tempHist_Downstream_dZ;
-    }
-  }
-  
-  for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-  {
-    for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-    {
-      calibCathodeDeltaX[y][z] = 0.0;
-      calibCathodeDeltaY[y][z] = 0.0;
-      calibCathodeDeltaZ[y][z] = 0.0;
-  
-      TH1F *tempHist_Cathode_dX = new TH1F(Form("tempHist_Cathode_dX_%d_%d",y,z),"",251,-0.251,0.251);
-      TH1F *tempHist_Cathode_dY = new TH1F(Form("tempHist_Cathode_dY_%d_%d",y,z),"",251,-0.251,0.251);
-      TH1F *tempHist_Cathode_dZ = new TH1F(Form("tempHist_Cathode_dZ_%d_%d",y,z),"",251,-0.251,0.251);
-      tempHist_Cathode_dX->SetDirectory(0);
-      tempHist_Cathode_dY->SetDirectory(0);
-      tempHist_Cathode_dZ->SetDirectory(0);
-      hists_Cathode_dX[y][z] = tempHist_Cathode_dX;
-      hists_Cathode_dY[y][z] = tempHist_Cathode_dY;
-      hists_Cathode_dZ[y][z] = tempHist_Cathode_dZ;
-    }
-  }
-  
-  vector<calibTrackInfo> cosmicCalibTracks = makeCalibTracks(cosmicTracks);
-  
-  calibTrackInfo calibTrack;
-  Int_t numCosmicTracks = cosmicCalibTracks.size();
-  
-  Double_t xVal;
-  Double_t yVal;
-  Double_t zVal;
-  Double_t xValDistorted;
-  Double_t yValDistorted;
-  Double_t zValDistorted;
-  Int_t xCalibLowIndex;
-  Int_t xCalibHighIndex;
-  Int_t yCalibLowIndex;
-  Int_t yCalibHighIndex;
-  Int_t zCalibLowIndex;
-  Int_t zCalibHighIndex;
-  Double_t xCalibFrac;
-  Double_t yCalibFrac;
-  Double_t zCalibFrac;
-  Double_t tempFactor;
-  Double_t startX;
-  Double_t startY;
-  Double_t startZ;
-  Double_t theta;
-  Double_t phi;
-  
-  Int_t trackNum;
-  Int_t numElec;
-  Int_t whichFace;
-    
-  TTree *T_faceOffsets = new TTree("SpaCEtree_faceOffsets","SpaCEtree_faceOffsets");
-  T_faceOffsets->Branch("trackNum",&trackNum,"data_faceOffsets/I");
-  T_faceOffsets->Branch("faceNum",&whichFace,"data_faceOffsets/I");
-  T_faceOffsets->Branch("numElec",&numElec,"data_faceOffsets/I");
-  T_faceOffsets->Branch("xVal",&xVal,"data_faceOffsets/D");
-  T_faceOffsets->Branch("yVal",&yVal,"data_faceOffsets/D");
-  T_faceOffsets->Branch("zVal",&zVal,"data_faceOffsets/D");
-  T_faceOffsets->Branch("xValDistorted",&xValDistorted,"data_faceOffsets/D");
-  T_faceOffsets->Branch("yValDistorted",&yValDistorted,"data_faceOffsets/D");
-  T_faceOffsets->Branch("zValDistorted",&zValDistorted,"data_faceOffsets/D");
-  T_faceOffsets->Branch("startX",&startX,"data_faceOffsets/D");
-  T_faceOffsets->Branch("startY",&startY,"data_faceOffsets/D");
-  T_faceOffsets->Branch("startZ",&startZ,"data_faceOffsets/D");
-  T_faceOffsets->Branch("theta",&theta,"data_faceOffsets/D");
-  T_faceOffsets->Branch("phi",&phi,"data_faceOffsets/D");
-  T_faceOffsets->Branch("weight",&tempFactor,"data_faceOffsets/D");
-  if(saveInfo == 1) {
-    T_faceOffsets->SetDirectory(outputFile);
-  }
-  
-  for(Int_t i = 0; i < numCosmicTracks; i++)
-  {
-    cout << "COSMIC-FACE " << i << endl;
-  
-    calibTrack = cosmicCalibTracks.at(i);
-    if(calibTrack.track.electrons.size() < minTrackPoints) continue;
-  
-    trackNum = i;
-    numElec = calibTrack.track.electrons.size();
-    theta = calibTrack.track.theta;
-    phi = calibTrack.track.phi;
-    
-    Int_t numNearAnode = 0;
-    if (calibTrack.track.electrons.at(0).x_mod > (TrueAnode - maxXdist)) {
-      numNearAnode++;
-    }
-    if (calibTrack.track.electrons.at(numElec-1).x_mod > (TrueAnode - maxXdist)) {
-      numNearAnode++;
-    }
-    if((numNearAnode == 0) || (numNearAnode == 2)) continue;
-  	
-    PointCloud calibPoints;
-    
-    Double_t avgX1 = 0.0;
-    Double_t avgX2 = 0.0;
-  
-    for(Int_t j = 0; j < 5; j++)
-    {
-      Double_t elecX = calibTrack.track.electrons.at(j).x_mod;
-      avgX1 += elecX;
-    }
-    avgX1 /= 5.0;
-  
-    for(Int_t j = numElec-1; j > numElec-6; j--)
-    {
-      Double_t elecX = calibTrack.track.electrons.at(j).x_mod;
-      avgX2 += elecX;
-    }
-    avgX2 /= 5.0;
-  
-    double SCEfactor = 1.0;
-    if (isSCEon == false) {
-      SCEfactor = 0.0;
-    }
-    
-    Int_t numBadPoints = 0;
-    if(avgX1 < avgX2) {
-      xValDistorted = calibTrack.track.electrons.at(0).x_mod;
-      yValDistorted = calibTrack.track.electrons.at(0).y_mod;
-      zValDistorted = calibTrack.track.electrons.at(0).z_mod;
-  
-      for (int j = numElec-1; j > numElec-1-numTrackSegPoints; j--) {
-        if ((calibTrack.track.electrons.at(j).x_mod < TrueCathode-bufferDist) || (calibTrack.track.electrons.at(j).x_mod > TrueAnode+bufferDist) || (calibTrack.track.electrons.at(j).y_mod < TrueBottom-bufferDist) || (calibTrack.track.electrons.at(j).y_mod > TrueTop+bufferDist) || (calibTrack.track.electrons.at(j).z_mod < TrueUpstream-bufferDist) || (calibTrack.track.electrons.at(j).z_mod > TrueDownstream+bufferDist)) {
-          numBadPoints++;
-  	  continue;
-	}
-  
-  	Point tempPoint;
-        //tempPoint.x = calibTrack.track.electrons.at(j).x_mod;
-        //tempPoint.y = calibTrack.track.electrons.at(j).y_mod;
-        //tempPoint.z = calibTrack.track.electrons.at(j).z_mod;
-        //tempPoint.x = calibTrack.track.electrons.at(j).x_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,1); // TEMP USE OF TRUTH INFO
-        //tempPoint.y = calibTrack.track.electrons.at(j).y_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,2); // TEMP USE OF TRUTH INFO
-        //tempPoint.z = calibTrack.track.electrons.at(j).z_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,3); // TEMP USE OF TRUTH INFO
-        tempPoint.x = calibTrack.track.electrons.at(j).x_mod + getBulkCorr(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,1);
-        tempPoint.y = calibTrack.track.electrons.at(j).y_mod + getBulkCorr(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,2);
-        tempPoint.z = calibTrack.track.electrons.at(j).z_mod + getBulkCorr(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,3);
-  
-        calibPoints.push_back(tempPoint);
-      }
-    }
-    else {
-      xValDistorted = calibTrack.track.electrons.at(numElec-1).x_mod;
-      yValDistorted = calibTrack.track.electrons.at(numElec-1).y_mod;
-      zValDistorted = calibTrack.track.electrons.at(numElec-1).z_mod;
-  
-      for (int j = 0; j < numTrackSegPoints; j++) {
-  	if ((calibTrack.track.electrons.at(j).x_mod < TrueCathode-bufferDist) || (calibTrack.track.electrons.at(j).x_mod > TrueAnode+bufferDist) || (calibTrack.track.electrons.at(j).y_mod < TrueBottom-bufferDist) || (calibTrack.track.electrons.at(j).y_mod > TrueTop+bufferDist) || (calibTrack.track.electrons.at(j).z_mod < TrueUpstream-bufferDist) || (calibTrack.track.electrons.at(j).z_mod > TrueDownstream+bufferDist)) {
-          numBadPoints++;
-  	  continue;
-  	}
-  	
-  	Point tempPoint;
-        //tempPoint.x = calibTrack.track.electrons.at(j).x_mod;
-        //tempPoint.y = calibTrack.track.electrons.at(j).y_mod;
-        //tempPoint.z = calibTrack.track.electrons.at(j).z_mod;
-        //tempPoint.x = calibTrack.track.electrons.at(j).x_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,1); // TEMP USE OF TRUTH INFO
-        //tempPoint.y = calibTrack.track.electrons.at(j).y_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,2); // TEMP USE OF TRUTH INFO
-        //tempPoint.z = calibTrack.track.electrons.at(j).z_mod + SCEfactor*getTruthOffset(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,3); // TEMP USE OF TRUTH INFO
-        tempPoint.x = calibTrack.track.electrons.at(j).x_mod + getBulkCorr(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,1);
-        tempPoint.y = calibTrack.track.electrons.at(j).y_mod + getBulkCorr(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,2);
-        tempPoint.z = calibTrack.track.electrons.at(j).z_mod + getBulkCorr(calibTrack.track.electrons.at(j).x_mod,calibTrack.track.electrons.at(j).y_mod,calibTrack.track.electrons.at(j).z_mod,3);
-  
-        calibPoints.push_back(tempPoint);
-      }
-    }
-    if (numBadPoints > 5) continue;
-    
-    PCAResults results = DoPCA(calibPoints);
-  
-    if (results.endPoints.first(0) > results.endPoints.second(0)) {
-      startX = results.endPoints.first(0);
-      startY = results.endPoints.first(1);
-      startZ = results.endPoints.first(2);
-    }
-    else {
-      startX = results.endPoints.second(0);
-      startY = results.endPoints.second(1);
-      startZ = results.endPoints.second(2);
-    }
-  
-    Double_t unitX = results.eVecs[0](0);
-    Double_t unitY = results.eVecs[0](1);
-    Double_t unitZ = results.eVecs[0](2);
-    if (unitX > 0.0) {
-      unitX *= -1.0;
-      unitY *= -1.0;
-      unitZ *= -1.0;
-    }
-  
-    whichFace = -1;
-    
-    Double_t t_Top = (TrueTop-startY)/unitY;
-    Double_t x_Top = unitX*t_Top + startX;
-    Double_t y_Top = TrueTop;
-    Double_t z_Top = unitZ*t_Top + startZ;
-    if((t_Top > 0.0) && (x_Top > TrueCathode) && (x_Top < TrueAnode) && (z_Top > TrueUpstream) && (z_Top < TrueDownstream)) {
-      xVal = x_Top;
-      yVal = y_Top;
-      zVal = z_Top;
-      whichFace = 0;
-    }
-  
-    Double_t t_Bottom = (TrueBottom-startY)/unitY;
-    Double_t x_Bottom = unitX*t_Bottom + startX;
-    Double_t y_Bottom = TrueBottom;
-    Double_t z_Bottom = unitZ*t_Bottom + startZ;
-    if((t_Bottom > 0.0) && (x_Bottom > TrueCathode) && (x_Bottom < TrueAnode) && (z_Bottom > TrueUpstream) && (z_Bottom < TrueDownstream)) {
-      xVal = x_Bottom;
-      yVal = y_Bottom;
-      zVal = z_Bottom;
-      whichFace = 1;
-    }
-  
-    Double_t t_Upstream = (TrueUpstream-startZ)/unitZ;
-    Double_t x_Upstream = unitX*t_Upstream + startX;
-    Double_t y_Upstream = unitY*t_Upstream + startY;
-    Double_t z_Upstream = TrueUpstream;
-    if((t_Upstream > 0.0) && (x_Upstream > TrueCathode) && (x_Upstream < TrueAnode) && (y_Upstream > TrueBottom) && (y_Upstream < TrueTop)) {
-      xVal = x_Upstream;
-      yVal = y_Upstream;
-      zVal = z_Upstream;
-      whichFace = 2;
-    }
-  
-    Double_t t_Downstream = (TrueDownstream-startZ)/unitZ;
-    Double_t x_Downstream = unitX*t_Downstream + startX;
-    Double_t y_Downstream = unitY*t_Downstream + startY;
-    Double_t z_Downstream = TrueDownstream;
-    if((t_Downstream > 0.0) && (x_Downstream > TrueCathode) && (x_Downstream < TrueAnode) && (y_Downstream > TrueBottom) && (y_Downstream < TrueTop)) {
-      xVal = x_Downstream;
-      yVal = y_Downstream;
-      zVal = z_Downstream;
-      whichFace = 3;
-    }
-  
-    Double_t t_Cathode = (TrueCathode-startX)/unitX;
-    Double_t x_Cathode = TrueCathode;
-    Double_t y_Cathode = unitY*t_Cathode + startY;
-    Double_t z_Cathode = unitZ*t_Cathode + startZ;
-    if((t_Cathode > 0.0) && (y_Cathode > TrueBottom) && (y_Cathode < TrueTop) && (z_Cathode > TrueUpstream) && (z_Cathode < TrueDownstream)) {
-      xVal = x_Cathode;
-      yVal = y_Cathode;
-      zVal = z_Cathode;
-      whichFace = 4;
-    }
-    
-    xCalibLowIndex = TMath::Floor((xValDistorted/Lx)*nCalibDivisions_x);
-    xCalibHighIndex = TMath::Ceil((xValDistorted/Lx)*nCalibDivisions_x);
-    yCalibLowIndex = TMath::Floor((yValDistorted/Ly)*nCalibDivisions_y);
-    yCalibHighIndex = TMath::Ceil((yValDistorted/Ly)*nCalibDivisions_y);
-    zCalibLowIndex = TMath::Floor((zValDistorted/Lz)*nCalibDivisions_z);
-    zCalibHighIndex = TMath::Ceil((zValDistorted/Lz)*nCalibDivisions_z);
-    
-    if(xValDistorted < 0.0) {
-      xCalibLowIndex = 0;
-      xCalibHighIndex = 1;
-      xCalibFrac = 0.0;
-    }
-    else if (xValDistorted > Lx) {
-      xCalibLowIndex = nCalibDivisions_x - 1;
-      xCalibHighIndex = nCalibDivisions_x;
-      xCalibFrac = 1.0;
-    }
-    
-    if(yValDistorted < 0.0) {
-      yCalibLowIndex = 0;
-      yCalibHighIndex = 1;
-      yCalibFrac = 0.0;
-    }
-    else if (yValDistorted > Ly) {
-      yCalibLowIndex = nCalibDivisions_y - 1;
-      yCalibHighIndex = nCalibDivisions_y;
-      yCalibFrac = 1.0;
-    }
-    
-    if(zValDistorted < 0.0) {
-      zCalibLowIndex = 0;
-      zCalibHighIndex = 1;
-      zCalibFrac = 0.0;
-    }
-    else if (zValDistorted > Lz) {
-      zCalibLowIndex = nCalibDivisions_z - 1;
-      zCalibHighIndex = nCalibDivisions_z;
-      zCalibFrac = 1.0;
-    }
-    
-    xCalibFrac = ((xValDistorted/Lx)*nCalibDivisions_x)-((Double_t) xCalibLowIndex);
-    yCalibFrac = ((yValDistorted/Ly)*nCalibDivisions_y)-((Double_t) yCalibLowIndex);
-    zCalibFrac = ((zValDistorted/Lz)*nCalibDivisions_z)-((Double_t) zCalibLowIndex);
-    
-    if (whichFace == 0) {
-      tempFactor = (1.0-xCalibFrac)*(1.0-zCalibFrac);
-      if(tempFactor >= minWeight) {
-        hists_Top_dX[xCalibLowIndex][zCalibLowIndex]->Fill(xVal-xValDistorted);
-        hists_Top_dY[xCalibLowIndex][zCalibLowIndex]->Fill(yVal-yValDistorted);
-        hists_Top_dZ[xCalibLowIndex][zCalibLowIndex]->Fill(zVal-zValDistorted);
-      }
-  
-      tempFactor = (1.0-xCalibFrac)*zCalibFrac;
-      if(tempFactor >= minWeight) {
-        hists_Top_dX[xCalibLowIndex][zCalibHighIndex]->Fill(xVal-xValDistorted);
-        hists_Top_dY[xCalibLowIndex][zCalibHighIndex]->Fill(yVal-yValDistorted);
-        hists_Top_dZ[xCalibLowIndex][zCalibHighIndex]->Fill(zVal-zValDistorted);
-      }
-  
-      tempFactor = xCalibFrac*(1.0-zCalibFrac);
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      if(tempFactor >= minWeight) {
-        hists_Top_dX[xCalibHighIndex][zCalibLowIndex]->Fill(xVal-xValDistorted);
-        hists_Top_dY[xCalibHighIndex][zCalibLowIndex]->Fill(yVal-yValDistorted);
-        hists_Top_dZ[xCalibHighIndex][zCalibLowIndex]->Fill(zVal-zValDistorted);
-      }
-  
-      tempFactor = xCalibFrac*zCalibFrac;
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      if(tempFactor >= minWeight) {
-        hists_Top_dX[xCalibHighIndex][zCalibHighIndex]->Fill(xVal-xValDistorted);
-        hists_Top_dY[xCalibHighIndex][zCalibHighIndex]->Fill(yVal-yValDistorted);
-        hists_Top_dZ[xCalibHighIndex][zCalibHighIndex]->Fill(zVal-zValDistorted);
-      }
-    }
-    else if (whichFace == 1) {
-      tempFactor = (1.0-xCalibFrac)*(1.0-zCalibFrac);
-      if(tempFactor >= minWeight) {
-        hists_Bottom_dX[xCalibLowIndex][zCalibLowIndex]->Fill(xVal-xValDistorted);
-        hists_Bottom_dY[xCalibLowIndex][zCalibLowIndex]->Fill(yVal-yValDistorted);
-        hists_Bottom_dZ[xCalibLowIndex][zCalibLowIndex]->Fill(zVal-zValDistorted);
-      }
-
-      tempFactor = (1.0-xCalibFrac)*zCalibFrac;
-      if(tempFactor >= minWeight) {
-        hists_Bottom_dX[xCalibLowIndex][zCalibHighIndex]->Fill(xVal-xValDistorted);
-        hists_Bottom_dY[xCalibLowIndex][zCalibHighIndex]->Fill(yVal-yValDistorted);
-        hists_Bottom_dZ[xCalibLowIndex][zCalibHighIndex]->Fill(zVal-zValDistorted);
-      }
-
-      tempFactor = xCalibFrac*(1.0-zCalibFrac);
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      if(tempFactor >= minWeight) {
-        hists_Bottom_dX[xCalibHighIndex][zCalibLowIndex]->Fill(xVal-xValDistorted);
-        hists_Bottom_dY[xCalibHighIndex][zCalibLowIndex]->Fill(yVal-yValDistorted);
-        hists_Bottom_dZ[xCalibHighIndex][zCalibLowIndex]->Fill(zVal-zValDistorted);
-      }
-
-      tempFactor = xCalibFrac*zCalibFrac;
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      if(tempFactor >= minWeight) {
-        hists_Bottom_dX[xCalibHighIndex][zCalibHighIndex]->Fill(xVal-xValDistorted);
-        hists_Bottom_dY[xCalibHighIndex][zCalibHighIndex]->Fill(yVal-yValDistorted);
-        hists_Bottom_dZ[xCalibHighIndex][zCalibHighIndex]->Fill(zVal-zValDistorted);
-      }
-    }
-    else if (whichFace == 2) {
-      tempFactor = (1.0-xCalibFrac)*(1.0-yCalibFrac);
-      if(tempFactor >= minWeight) {
-        hists_Upstream_dX[xCalibLowIndex][yCalibLowIndex]->Fill(xVal-xValDistorted);
-        hists_Upstream_dY[xCalibLowIndex][yCalibLowIndex]->Fill(yVal-yValDistorted);
-        hists_Upstream_dZ[xCalibLowIndex][yCalibLowIndex]->Fill(zVal-zValDistorted);
-      }
-
-      tempFactor = (1.0-xCalibFrac)*yCalibFrac;
-      if(tempFactor >= minWeight) {
-        hists_Upstream_dX[xCalibLowIndex][yCalibHighIndex]->Fill(xVal-xValDistorted);
-        hists_Upstream_dY[xCalibLowIndex][yCalibHighIndex]->Fill(yVal-yValDistorted);
-        hists_Upstream_dZ[xCalibLowIndex][yCalibHighIndex]->Fill(zVal-zValDistorted);
-      }
-
-      tempFactor = xCalibFrac*(1.0-yCalibFrac);
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      if(tempFactor >= minWeight) {
-        hists_Upstream_dX[xCalibHighIndex][yCalibLowIndex]->Fill(xVal-xValDistorted);
-        hists_Upstream_dY[xCalibHighIndex][yCalibLowIndex]->Fill(yVal-yValDistorted);
-        hists_Upstream_dZ[xCalibHighIndex][yCalibLowIndex]->Fill(zVal-zValDistorted);
-      }
-
-      tempFactor = xCalibFrac*yCalibFrac;
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      if(tempFactor >= minWeight) {
-        hists_Upstream_dX[xCalibHighIndex][yCalibHighIndex]->Fill(xVal-xValDistorted);
-        hists_Upstream_dY[xCalibHighIndex][yCalibHighIndex]->Fill(yVal-yValDistorted);
-        hists_Upstream_dZ[xCalibHighIndex][yCalibHighIndex]->Fill(zVal-zValDistorted);
-      }
-    }
-    else if (whichFace == 3) {
-      tempFactor = (1.0-xCalibFrac)*(1.0-yCalibFrac);
-      if(tempFactor >= minWeight) {
-        hists_Downstream_dX[xCalibLowIndex][yCalibLowIndex]->Fill(xVal-xValDistorted);
-        hists_Downstream_dY[xCalibLowIndex][yCalibLowIndex]->Fill(yVal-yValDistorted);
-        hists_Downstream_dZ[xCalibLowIndex][yCalibLowIndex]->Fill(zVal-zValDistorted);
-      }
-
-      tempFactor = (1.0-xCalibFrac)*yCalibFrac;
-      if(tempFactor >= minWeight) {
-        hists_Downstream_dX[xCalibLowIndex][yCalibHighIndex]->Fill(xVal-xValDistorted);
-        hists_Downstream_dY[xCalibLowIndex][yCalibHighIndex]->Fill(yVal-yValDistorted);
-        hists_Downstream_dZ[xCalibLowIndex][yCalibHighIndex]->Fill(zVal-zValDistorted);
-      }
-
-      tempFactor = xCalibFrac*(1.0-yCalibFrac);
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      if(tempFactor >= minWeight) {
-        hists_Downstream_dX[xCalibHighIndex][yCalibLowIndex]->Fill(xVal-xValDistorted);
-        hists_Downstream_dY[xCalibHighIndex][yCalibLowIndex]->Fill(yVal-yValDistorted);
-        hists_Downstream_dZ[xCalibHighIndex][yCalibLowIndex]->Fill(zVal-zValDistorted);
-      }
-  
-      tempFactor = xCalibFrac*yCalibFrac;
-      if(xCalibHighIndex == nCalibDivisions_x)
-        tempFactor = 0.0;
-      if(tempFactor >= minWeight) {
-        hists_Downstream_dX[xCalibHighIndex][yCalibHighIndex]->Fill(xVal-xValDistorted);
-        hists_Downstream_dY[xCalibHighIndex][yCalibHighIndex]->Fill(yVal-yValDistorted);
-        hists_Downstream_dZ[xCalibHighIndex][yCalibHighIndex]->Fill(zVal-zValDistorted);
-      }
-    }
-    else if (whichFace == 4) {
-      tempFactor = (1.0-yCalibFrac)*(1.0-zCalibFrac);
-      if(tempFactor >= minWeight) {
-        hists_Cathode_dX[yCalibLowIndex][zCalibLowIndex]->Fill(xVal-xValDistorted);
-        hists_Cathode_dY[yCalibLowIndex][zCalibLowIndex]->Fill(yVal-yValDistorted);
-        hists_Cathode_dZ[yCalibLowIndex][zCalibLowIndex]->Fill(zVal-zValDistorted);
-      }
-  
-      tempFactor = (1.0-yCalibFrac)*zCalibFrac;
-      if(tempFactor >= minWeight) {
-        hists_Cathode_dX[yCalibLowIndex][zCalibHighIndex]->Fill(xVal-xValDistorted);
-        hists_Cathode_dY[yCalibLowIndex][zCalibHighIndex]->Fill(yVal-yValDistorted);
-        hists_Cathode_dZ[yCalibLowIndex][zCalibHighIndex]->Fill(zVal-zValDistorted);
-      }
-  
-      tempFactor = yCalibFrac*(1.0-zCalibFrac);
-      if(tempFactor >= minWeight) {
-        hists_Cathode_dX[yCalibHighIndex][zCalibLowIndex]->Fill(xVal-xValDistorted);
-        hists_Cathode_dY[yCalibHighIndex][zCalibLowIndex]->Fill(yVal-yValDistorted);
-        hists_Cathode_dZ[yCalibHighIndex][zCalibLowIndex]->Fill(zVal-zValDistorted);
-      }
-  
-      tempFactor = yCalibFrac*zCalibFrac;
-      if(tempFactor >= minWeight) {
-        hists_Cathode_dX[yCalibHighIndex][zCalibHighIndex]->Fill(xVal-xValDistorted);
-        hists_Cathode_dY[yCalibHighIndex][zCalibHighIndex]->Fill(yVal-yValDistorted);
-        hists_Cathode_dZ[yCalibHighIndex][zCalibHighIndex]->Fill(zVal-zValDistorted);
-      }
-    }
-  
-    if (whichFace >= 0) {
-      cout << "  " << whichFace << " " << xVal << " " << yVal << " " << zVal << " " << xValDistorted << " " << yValDistorted << " " << zValDistorted << " " << endl;
-      if(saveInfo == 1) {
-        T_faceOffsets->Fill();
-      }
-    }
-  }
-  
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-    {
-      if(hists_Top_dX[x][z]->GetEntries() >= minEntries)
-      {
-	if(hists_Top_dX[x][z]->GetMaximum() >= minMaxBin)
-          calibTopDeltaX[x][z] = hists_Top_dX[x][z]->GetBinCenter(hists_Top_dX[x][z]->GetMaximumBin());
-	else
-          calibTopDeltaX[x][z] = findHistMedian(hists_Top_dX[x][z]);
-      }
-      else
-      {
-        calibTopDeltaX[x][z] = -10000.0;
-      }
-
-      if(hists_Top_dY[x][z]->GetEntries() >= minEntries)
-      {
-	if(hists_Top_dY[x][z]->GetMaximum() >= minMaxBin)
-          calibTopDeltaY[x][z] = hists_Top_dY[x][z]->GetBinCenter(hists_Top_dY[x][z]->GetMaximumBin());
-	else
-          calibTopDeltaY[x][z] = findHistMedian(hists_Top_dY[x][z]);
-      }
-      else
-      {
-        calibTopDeltaY[x][z] = -10000.0;
-      }
-      
-      if(hists_Top_dZ[x][z]->GetEntries() >= minEntries)
-      {
-	if(hists_Top_dZ[x][z]->GetMaximum() >= minMaxBin)
-          calibTopDeltaZ[x][z] = hists_Top_dZ[x][z]->GetBinCenter(hists_Top_dZ[x][z]->GetMaximumBin());
-	else
-          calibTopDeltaZ[x][z] = findHistMedian(hists_Top_dZ[x][z]);
-      }
-      else
-      {
-        calibTopDeltaZ[x][z] = -10000.0;
-      }
-
-      if(hists_Bottom_dX[x][z]->GetEntries() >= minEntries)
-      {
-	if(hists_Bottom_dX[x][z]->GetMaximum() >= minMaxBin)
-          calibBottomDeltaX[x][z] = hists_Bottom_dX[x][z]->GetBinCenter(hists_Bottom_dX[x][z]->GetMaximumBin());
-	else
-          calibBottomDeltaX[x][z] = findHistMedian(hists_Bottom_dX[x][z]);
-      }
-      else
-      {
-        calibBottomDeltaX[x][z] = -10000.0;
-      }
-
-      if(hists_Bottom_dY[x][z]->GetEntries() >= minEntries)
-      {
-	if(hists_Bottom_dY[x][z]->GetMaximum() >= minMaxBin)
-          calibBottomDeltaY[x][z] = hists_Bottom_dY[x][z]->GetBinCenter(hists_Bottom_dY[x][z]->GetMaximumBin());
-	else
-          calibBottomDeltaY[x][z] = findHistMedian(hists_Bottom_dY[x][z]);
-      }
-      else
-      {
-        calibBottomDeltaY[x][z] = -10000.0;
-      }
-
-      if(hists_Bottom_dZ[x][z]->GetEntries() >= minEntries)
-      {
-	if(hists_Bottom_dZ[x][z]->GetMaximum() >= minMaxBin)
-          calibBottomDeltaZ[x][z] = hists_Bottom_dZ[x][z]->GetBinCenter(hists_Bottom_dZ[x][z]->GetMaximumBin());
-	else
-          calibBottomDeltaZ[x][z] = findHistMedian(hists_Bottom_dZ[x][z]);
-      }
-      else
-      {
-        calibBottomDeltaZ[x][z] = -10000.0;
-      }
-    }
-  }
-  
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      if(hists_Upstream_dX[x][y]->GetEntries() >= minEntries)
-      {
-	if(hists_Upstream_dX[x][y]->GetMaximum() >= minMaxBin)
-          calibUpstreamDeltaX[x][y] = hists_Upstream_dX[x][y]->GetBinCenter(hists_Upstream_dX[x][y]->GetMaximumBin());
-	else
-          calibUpstreamDeltaX[x][y] = findHistMedian(hists_Upstream_dX[x][y]);
-      }
-      else
-      {
-        calibUpstreamDeltaX[x][y] = -10000.0;
-      }
-
-      if(hists_Upstream_dY[x][y]->GetEntries() >= minEntries)
-      {
-	if(hists_Upstream_dY[x][y]->GetMaximum() >= minMaxBin)
-          calibUpstreamDeltaY[x][y] = hists_Upstream_dY[x][y]->GetBinCenter(hists_Upstream_dY[x][y]->GetMaximumBin());
-	else
-          calibUpstreamDeltaY[x][y] = findHistMedian(hists_Upstream_dY[x][y]);
-      }
-      else
-      {
-        calibUpstreamDeltaY[x][y] = -10000.0;
-      }
-
-      if(hists_Upstream_dZ[x][y]->GetEntries() >= minEntries)
-      {
-	if(hists_Upstream_dZ[x][y]->GetMaximum() >= minMaxBin)
-          calibUpstreamDeltaZ[x][y] = hists_Upstream_dZ[x][y]->GetBinCenter(hists_Upstream_dZ[x][y]->GetMaximumBin());
-	else
-          calibUpstreamDeltaZ[x][y] = findHistMedian(hists_Upstream_dZ[x][y]);
-      }
-      else
-      {
-        calibUpstreamDeltaZ[x][y] = -10000.0;
-      }
-
-      if(hists_Downstream_dX[x][y]->GetEntries() >= minEntries)
-      {
-	if(hists_Downstream_dX[x][y]->GetMaximum() >= minMaxBin)
-          calibDownstreamDeltaX[x][y] = hists_Downstream_dX[x][y]->GetBinCenter(hists_Downstream_dX[x][y]->GetMaximumBin());
-	else
-          calibDownstreamDeltaX[x][y] = findHistMedian(hists_Downstream_dX[x][y]);
-      }
-      else
-      {
-        calibDownstreamDeltaX[x][y] = -10000.0;
-      }
-
-      if(hists_Downstream_dY[x][y]->GetEntries() >= minEntries)
-      {
-	if(hists_Downstream_dY[x][y]->GetMaximum() >= minMaxBin)
-          calibDownstreamDeltaY[x][y] = hists_Downstream_dY[x][y]->GetBinCenter(hists_Downstream_dY[x][y]->GetMaximumBin());
-	else
-          calibDownstreamDeltaY[x][y] = findHistMedian(hists_Downstream_dY[x][y]);
-      }
-      else
-      {
-        calibDownstreamDeltaY[x][y] = -10000.0;
-      }
-
-      if(hists_Downstream_dZ[x][y]->GetEntries() >= minEntries)
-      {
-	if(hists_Downstream_dZ[x][y]->GetMaximum() >= minMaxBin)
-          calibDownstreamDeltaZ[x][y] = hists_Downstream_dZ[x][y]->GetBinCenter(hists_Downstream_dZ[x][y]->GetMaximumBin());
-	else
-          calibDownstreamDeltaZ[x][y] = findHistMedian(hists_Downstream_dZ[x][y]);
-      }
-      else
-      {
-        calibDownstreamDeltaZ[x][y] = -10000.0;
-      }
-    }
-  }
-  
-  for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-  {
-    for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-    {
-      if(hists_Cathode_dX[y][z]->GetEntries() >= minEntries)
-      {
-	if(hists_Cathode_dX[y][z]->GetMaximum() >= minMaxBin)
-          calibCathodeDeltaX[y][z] = hists_Cathode_dX[y][z]->GetBinCenter(hists_Cathode_dX[y][z]->GetMaximumBin());
-	else
-          calibCathodeDeltaX[y][z] = findHistMedian(hists_Cathode_dX[y][z]);
-      }
-      else
-      {
-        calibCathodeDeltaX[y][z] = -10000.0;
-      }
-
-      if(hists_Cathode_dY[y][z]->GetEntries() >= minEntries)
-      {
-	if(hists_Cathode_dY[y][z]->GetMaximum() >= minMaxBin)
-          calibCathodeDeltaY[y][z] = hists_Cathode_dY[y][z]->GetBinCenter(hists_Cathode_dY[y][z]->GetMaximumBin());
-	else
-          calibCathodeDeltaY[y][z] = findHistMedian(hists_Cathode_dY[y][z]);
-      }
-      else
-      {
-        calibCathodeDeltaY[y][z] = -10000.0;
-      }
-
-      if(hists_Cathode_dZ[y][z]->GetEntries() >= minEntries)
-      {
-	if(hists_Cathode_dZ[y][z]->GetMaximum() >= minMaxBin)
-          calibCathodeDeltaZ[y][z] = hists_Cathode_dZ[y][z]->GetBinCenter(hists_Cathode_dZ[y][z]->GetMaximumBin());
-	else
-          calibCathodeDeltaZ[y][z] = findHistMedian(hists_Cathode_dZ[y][z]);
-      }
-      else
-      {
-        calibCathodeDeltaZ[y][z] = -10000.0;
-      }
-    }
-  }
-
-  conditionFaceMap(calibTopDeltaX,0);
-  conditionFaceMap(calibTopDeltaY,0);
-  conditionFaceMap(calibTopDeltaZ,0);
-  conditionFaceMap(calibBottomDeltaX,1);
-  conditionFaceMap(calibBottomDeltaY,1);
-  conditionFaceMap(calibBottomDeltaZ,1);
-  conditionFaceMap(calibUpstreamDeltaX,2);
-  conditionFaceMap(calibUpstreamDeltaY,2);
-  conditionFaceMap(calibUpstreamDeltaZ,2);
-  conditionFaceMap(calibDownstreamDeltaX,3);
-  conditionFaceMap(calibDownstreamDeltaY,3);
-  conditionFaceMap(calibDownstreamDeltaZ,3);
-  conditionFaceMap(calibCathodeDeltaX,4);
-  conditionFaceMap(calibCathodeDeltaY,4);
-  conditionFaceMap(calibCathodeDeltaZ,4);
-    
-  Double_t x_true, y_true, z_true;
-  Double_t x_reco, y_reco, z_reco;
-  Double_t Dx, Dy, Dz;
-  Int_t numEntries;
-  Int_t elecFate;
-  Int_t faceNum;
-  
-  TTree *T_calibFaces = new TTree("SpaCEtree_calibFaces","SpaCEtree_calibFaces");
-  T_calibFaces->Branch("x_true",&x_true,"data_calibFaces/D");
-  T_calibFaces->Branch("y_true",&y_true,"data_calibFaces/D");
-  T_calibFaces->Branch("z_true",&z_true,"data_calibFaces/D");
-  T_calibFaces->Branch("x_reco",&x_reco,"data_calibFaces/D");
-  T_calibFaces->Branch("y_reco",&y_reco,"data_calibFaces/D");
-  T_calibFaces->Branch("z_reco",&z_reco,"data_calibFaces/D");
-  T_calibFaces->Branch("Dx",&Dx,"data_calibFaces/D");
-  T_calibFaces->Branch("Dy",&Dy,"data_calibFaces/D");
-  T_calibFaces->Branch("Dz",&Dz,"data_calibFaces/D");
-  T_calibFaces->Branch("numEntries",&numEntries,"data_calibFaces/I");
-  T_calibFaces->Branch("elecFate",&elecFate,"data_calibFaces/I");
-  T_calibFaces->Branch("faceNum",&faceNum,"data_calibFaces/I");
-  if(saveInfo == 1) {
-    T_calibFaces->SetDirectory(outputFile);
-  }
-  
-  faceNum = 0;
-  x_reco = -1.0*Lx/nCalibDivisions_x;
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    x_reco += Lx/nCalibDivisions_x;
-    z_reco = -1.0*Lz/nCalibDivisions_z;
-  
-    for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-    {
-      z_reco += Lz/nCalibDivisions_z;
-  
-      if(x == nCalibDivisions_x) {
-        Dx = 0.0;
-        Dy = 0.0;
-        Dz = 0.0;
-      }
-      else {
-        Dx = calibTopDeltaX[x][z];
-        Dy = calibTopDeltaY[x][z];
-        Dz = calibTopDeltaZ[x][z];
-      }
-  
-      numEntries = hists_Top_dX[x][z]->GetEntries();
-  
-      x_true = x_reco+Dx;
-      y_true = TrueTop;
-      y_reco = y_true-Dy;
-      z_true = z_reco+Dz;
-  
-      if((numEntries >= minEntries) || (x == nCalibDivisions_x))
-        elecFate = 1;
-      else
-        elecFate = 0;
-
-      faceCalibHistTopDeltaX->SetBinContent(z+1,x+1,Dx);
-      faceCalibHistTopDeltaY->SetBinContent(z+1,x+1,Dy);
-      faceCalibHistTopDeltaZ->SetBinContent(z+1,x+1,Dz);
-
-      if(saveInfo == 1) {
-        T_calibFaces->Fill();
-      }
-    }
-  }
-
-  faceNum = 1;
-  x_reco = -1.0*Lx/nCalibDivisions_x;
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    x_reco += Lx/nCalibDivisions_x;
-    z_reco = -1.0*Lz/nCalibDivisions_z;
-  
-    for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-    {
-      z_reco += Lz/nCalibDivisions_z;
-  
-      if(x == nCalibDivisions_x) {
-        Dx = 0.0;
-        Dy = 0.0;
-        Dz = 0.0;
-      }
-      else {
-        Dx = calibBottomDeltaX[x][z];
-        Dy = calibBottomDeltaY[x][z];
-        Dz = calibBottomDeltaZ[x][z];
-      }
-  
-      numEntries = hists_Bottom_dX[x][z]->GetEntries();
-  
-      x_true = x_reco+Dx;
-      y_true = TrueBottom;
-      y_reco = y_true-Dy;
-      z_true = z_reco+Dz;
-  
-      if((numEntries >= minEntries) || (x == nCalibDivisions_x))
-        elecFate = 1;
-      else
-        elecFate = 0;
-    
-      faceCalibHistBottomDeltaX->SetBinContent(z+1,x+1,Dx);
-      faceCalibHistBottomDeltaY->SetBinContent(z+1,x+1,Dy);
-      faceCalibHistBottomDeltaZ->SetBinContent(z+1,x+1,Dz);
-
-      if(saveInfo == 1) {
-        T_calibFaces->Fill();
-      }
-    }
-  }
-  
-  faceNum = 2;
-  x_reco = -1.0*Lx/nCalibDivisions_x;
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    x_reco += Lx/nCalibDivisions_x;
-    y_reco = -1.0*Ly/nCalibDivisions_y;
-  
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      y_reco += Ly/nCalibDivisions_y;
-  
-      if(x == nCalibDivisions_x) {
-        Dx = 0.0;
-        Dy = 0.0;
-        Dz = 0.0;
-      }
-      else {
-        Dx = calibUpstreamDeltaX[x][y];
-        Dy = calibUpstreamDeltaY[x][y];
-        Dz = calibUpstreamDeltaZ[x][y];
-      }
-  
-      numEntries = hists_Upstream_dX[x][y]->GetEntries();
-  
-      x_true = x_reco+Dx;
-      y_true = y_reco+Dy;
-      z_true = TrueUpstream;
-      z_reco = z_true-Dz;
-  
-      if((numEntries >= minEntries) || (x == nCalibDivisions_x))
-        elecFate = 1;
-      else
-        elecFate = 0;
-    
-      faceCalibHistUpstreamDeltaX->SetBinContent(x+1,y+1,Dx);
-      faceCalibHistUpstreamDeltaY->SetBinContent(x+1,y+1,Dy);
-      faceCalibHistUpstreamDeltaZ->SetBinContent(x+1,y+1,Dz);
-
-      if(saveInfo == 1) {
-        T_calibFaces->Fill();
-      }
-    }
-  }
-  
-  faceNum = 3;
-  x_reco = -1.0*Lx/nCalibDivisions_x;
-  for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-  {
-    x_reco += Lx/nCalibDivisions_x;
-    y_reco = -1.0*Ly/nCalibDivisions_y;
-  
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      y_reco += Ly/nCalibDivisions_y;
-  
-      if(x == nCalibDivisions_x) {
-        Dx = 0.0;
-        Dy = 0.0;
-        Dz = 0.0;
-      }
-      else {
-        Dx = calibDownstreamDeltaX[x][y];
-        Dy = calibDownstreamDeltaY[x][y];
-        Dz = calibDownstreamDeltaZ[x][y];
-      }
-  
-      numEntries = hists_Downstream_dX[x][y]->GetEntries();
-  
-      x_true = x_reco+Dx;
-      y_true = y_reco+Dy;
-      z_true = TrueDownstream;
-      z_reco = z_true-Dz;
-  
-      if((numEntries >= minEntries) || (x == nCalibDivisions_x))
-        elecFate = 1;
-      else
-        elecFate = 0;
-    
-      faceCalibHistDownstreamDeltaX->SetBinContent(x+1,y+1,Dx);
-      faceCalibHistDownstreamDeltaY->SetBinContent(x+1,y+1,Dy);
-      faceCalibHistDownstreamDeltaZ->SetBinContent(x+1,y+1,Dz);
-
-      if(saveInfo == 1) {
-        T_calibFaces->Fill();
-      }
-    }
-  }
-  
-  faceNum = 4;
-  y_reco = -1.0*Ly/nCalibDivisions_y;
-  for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-  {
-    y_reco += Ly/nCalibDivisions_y;
-    z_reco = -1.0*Lz/nCalibDivisions_z;
-  
-    for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-    {
-      z_reco += Lz/nCalibDivisions_z;
-  
-      Dx = calibCathodeDeltaX[y][z];
-      Dy = calibCathodeDeltaY[y][z];
-      Dz = calibCathodeDeltaZ[y][z];
-  
-      numEntries = hists_Cathode_dX[y][z]->GetEntries();
-  
-      x_true = TrueCathode;
-      x_reco = x_true-Dx;
-      y_true = y_reco+Dy;
-      z_true = z_reco+Dz;
-  
-      if(numEntries >= minEntries)
-        elecFate = 1;
-      else
-        elecFate = 0;
-    
-      faceCalibHistCathodeDeltaX->SetBinContent(z+1,y+1,Dx);
-      faceCalibHistCathodeDeltaY->SetBinContent(z+1,y+1,Dy);
-      faceCalibHistCathodeDeltaZ->SetBinContent(z+1,y+1,Dz);
-
-      if(saveInfo == 1) {
-        T_calibFaces->Fill();
-      }
-    }
-  }
-  
-  return;
-}
-
-PCAResults DoPCA(const PointCloud &points) {
-
-  TVector3 outputCentroid;
-  pair<TVector3,TVector3> outputEndPoints;
-  float outputLength;
-  TVector3 outputEigenValues;
-  vector<TVector3> outputEigenVecs;
-
-  float meanPosition[3] = {0., 0., 0.};
-  unsigned int nThreeDHits = 0;
-
-  for (unsigned int i = 0; i < points.size(); i++) {
-    meanPosition[0] += points[i].x;
-    meanPosition[1] += points[i].y;
-    meanPosition[2] += points[i].z;
-    ++nThreeDHits;
-  }
-
-  if (nThreeDHits == 0) {
-    PCAResults results;
-    return results; // FAIL FROM NO INPUT POINTS
-  }
-
-  const float nThreeDHitsAsFloat(static_cast<float>(nThreeDHits));
-  meanPosition[0] /= nThreeDHitsAsFloat;
-  meanPosition[1] /= nThreeDHitsAsFloat;
-  meanPosition[2] /= nThreeDHitsAsFloat;
-  outputCentroid = TVector3(meanPosition[0], meanPosition[1], meanPosition[2]);
-
-  // Define elements of our covariance matrix
-  float xi2 = 0.0;
-  float xiyi = 0.0;
-  float xizi = 0.0;
-  float yi2 = 0.0;
-  float yizi = 0.0;
-  float zi2 = 0.0;
-  float weightSum = 0.0;
-
-  for (unsigned int i = 0; i < points.size(); i++) {
-      const float weight(1.);
-      const float x((points[i].x - meanPosition[0]) * weight);
-      const float y((points[i].y - meanPosition[1]) * weight);
-      const float z((points[i].z - meanPosition[2]) * weight);
-
-      xi2  += x * x;
-      xiyi += x * y;
-      xizi += x * z;
-      yi2  += y * y;
-      yizi += y * z;
-      zi2  += z * z;
-      weightSum += weight * weight;
-  }
-
-  // Using Eigen package
-  Eigen::Matrix3f sig;
-
-  sig << xi2, xiyi, xizi,
-         xiyi, yi2, yizi,
-         xizi, yizi, zi2;
-
-  //if (std::fabs(weightSum) < std::numeric_limits<float>::epsilon())
-  //{
-  //    std::cout << "PCAShowerParticleBuildingAlgorithm::RunPCA - The total weight of three dimensional hits is 0!" << std::endl;
-  //    throw StatusCodeException(STATUS_CODE_INVALID_PARAMETER);
-  //}
-
-  sig *= 1.0 / weightSum;
-
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigenMat(sig);
-
-  //if (eigenMat.info() != Eigen::ComputationInfo::Success)
-  //{
-  //    std::cout << "PCAShowerParticleBuildingAlgorithm::RunPCA - PCA decompose failure, number of three D hits = " << nThreeDHits << std::endl;
-  //    throw StatusCodeException(STATUS_CODE_INVALID_PARAMETER);
-  //}
-
-  typedef std::pair<float,size_t> EigenValColPair;
-  typedef std::vector<EigenValColPair> EigenValColVector;
-
-  EigenValColVector eigenValColVector;
-  const auto &resultEigenMat(eigenMat.eigenvalues());
-  eigenValColVector.emplace_back(resultEigenMat(0), 0);
-  eigenValColVector.emplace_back(resultEigenMat(1), 1);
-  eigenValColVector.emplace_back(resultEigenMat(2), 2);
-
-  std::sort(eigenValColVector.begin(), eigenValColVector.end(), [](const EigenValColPair &left, const EigenValColPair &right){return left.first > right.first;} );
-
-  outputEigenValues = TVector3(eigenValColVector.at(0).first, eigenValColVector.at(1).first, eigenValColVector.at(2).first);
-
-  const Eigen::Matrix3f &eigenVecs(eigenMat.eigenvectors());
-
-  for (const EigenValColPair &pair : eigenValColVector) {
-     outputEigenVecs.emplace_back(eigenVecs(0, pair.second), eigenVecs(1, pair.second), eigenVecs(2, pair.second));
-  }
-
-  PCAResults results;
-
-  Eigen::ParametrizedLine<float,3> priAxis(Eigen::Vector3f(outputCentroid(0),outputCentroid(1),outputCentroid(2)),Eigen::Vector3f(outputEigenVecs[0](0),outputEigenVecs[0](1),outputEigenVecs[0](2)));
-
-  Eigen::Vector3f endPoint1(Eigen::Vector3f(outputCentroid(0),outputCentroid(1),outputCentroid(2)));
-  Eigen::Vector3f endPoint2(Eigen::Vector3f(outputCentroid(0),outputCentroid(1),outputCentroid(2)));
-
-  Eigen::Vector3f testPoint;
-  Eigen::Vector3f projTestPoint;
-  float maxDist1 = -1.0;
-  float maxDist2 = -1.0;
-  float dist;
-  float dotP;
-  for (unsigned int i = 0; i < points.size(); i++) {
-    testPoint = Eigen::Vector3f(points[i].x,points[i].y,points[i].z);
-    projTestPoint = priAxis.projection(testPoint);
-    dist = sqrt(pow(projTestPoint(0)-outputCentroid(0),2.0)+pow(projTestPoint(1)-outputCentroid(1),2.0)+pow(projTestPoint(2)-outputCentroid(2),2.0));
-    dotP = (projTestPoint(0)-outputCentroid(0))*outputEigenVecs[0](0) + (projTestPoint(1)-outputCentroid(1))*outputEigenVecs[0](1) + (projTestPoint(2)-outputCentroid(2))*outputEigenVecs[0](2);
-
-    if ((dotP < 0.0) && (dist > maxDist1)) {
-      endPoint1 = projTestPoint;
-      maxDist1 = dist;
-    }
-    else if ((dotP > 0.0) && (dist > maxDist2)) {
-      endPoint2 = projTestPoint;
-      maxDist2 = dist;
-    }
-  }
-
-  outputEndPoints.first = TVector3(endPoint1(0),endPoint1(1),endPoint1(2));
-  outputEndPoints.second = TVector3(endPoint2(0),endPoint2(1),endPoint2(2));
-
-  outputLength = sqrt(pow(endPoint2(0)-endPoint1(0),2.0)+pow(endPoint2(1)-endPoint1(1),2.0)+pow(endPoint2(2)-endPoint1(2),2.0));
-
-  results.centroid = outputCentroid;
-  results.endPoints = outputEndPoints;
-  results.length = outputLength;
-  results.eVals = outputEigenValues;
-  results.eVecs = outputEigenVecs;
-
-  return results;
-}
-
-Double_t findHistMedian(TH1F *hist)
-{
-  Double_t q = 0.5;
-  Double_t x = 0.0;
-  hist->ComputeIntegral();
-  hist->GetQuantiles(1, &x, &q);
-
-  return x;
-}
-
-void conditionFaceMap(vector<vector<Double_t> > &inputMap, Int_t faceNum)
-{
-  const Int_t edgeXbins = 1;//2
-  const Int_t edgeYbins = 1;//2
-  const Int_t medianFiltXbins = 1;//0
-  const Int_t medianFiltYbins = 1;//0
-  //const Double_t gaussFilterWidth = 0.10;
-  const Double_t gaussFilterWidth = 0.20;
-  //const Double_t gaussFilterWidth = 100000000.0;
-
-  TH2F *tempHist;
-  if((faceNum == 0) || (faceNum == 1))
-  {
-    tempHist = new TH2F("tempHist","",nCalibDivisions_z+1,0,nCalibDivisions_z+1,nCalibDivisions_x+1,0,nCalibDivisions_x+1);
-    tempHist->SetDirectory(0);
-    for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        tempHist->SetBinContent(z+1,x+1,inputMap[x][z]);
-      }
-    }
-  }
-  else if((faceNum == 2) || (faceNum == 3))
-  {
-    tempHist = new TH2F("tempHist","",nCalibDivisions_x+1,0,nCalibDivisions_x+1,nCalibDivisions_y+1,0,nCalibDivisions_y+1);
-    tempHist->SetDirectory(0);
-    for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-    {
-      for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-      {
-        tempHist->SetBinContent(x+1,y+1,inputMap[x][y]);
-      }
-    }
-  }
-  else
-  {
-    tempHist = new TH2F("tempHist","",nCalibDivisions_z+1,0,nCalibDivisions_z+1,nCalibDivisions_y+1,0,nCalibDivisions_y+1);
-    tempHist->SetDirectory(0);
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        tempHist->SetBinContent(z+1,y+1,inputMap[y][z]);
-      }
-    }
-  }
-  
-  Int_t numXbins = tempHist->GetNbinsX()-2*edgeXbins;
-  Int_t numYbins = tempHist->GetNbinsY()-2*edgeYbins;
-  
-  TH2F *origHist = new TH2F("origHist","",numXbins,0,numXbins,numYbins,0,numYbins);
-  origHist->SetDirectory(0);
-  for(Int_t i = 0; i < numXbins; i++)
-  {
-    for(Int_t j = 0; j < numYbins; j++)
-    {
-      origHist->SetBinContent(i+1,j+1,tempHist->GetBinContent(i+1+edgeXbins,j+1+edgeYbins));
-    }
-  }
-
-  Int_t numFiltXbins = origHist->GetNbinsX()-2*medianFiltXbins;
-  Int_t numFiltYbins = origHist->GetNbinsY()-2*medianFiltYbins;
-  TH2F *medianHist = new TH2F("medianHist","",numFiltXbins,0,numFiltXbins,numFiltYbins,0,numFiltYbins);
-  medianHist->SetDirectory(0);
-  for(Int_t i = medianFiltXbins; i < numXbins-medianFiltXbins; i++)
-  {
-    for(Int_t j = medianFiltYbins; j < numYbins-medianFiltYbins; j++)
-    {
-      Double_t vals[(2*medianFiltXbins+1)*(2*medianFiltYbins+1)];
-      Double_t weights[(2*medianFiltXbins+1)*(2*medianFiltYbins+1)];
-
-      Int_t numCounts = 0;
-      for(Int_t h = -1*medianFiltXbins; h <= medianFiltXbins; h++)
-      {
-        for(Int_t k = -1*medianFiltYbins; k <= medianFiltYbins; k++)
-        {
-          vals[numCounts] = origHist->GetBinContent(i+h+1,j+k+1);
-          if(origHist->GetBinContent(i+h+1,j+k+1) > -1000.0)
-          {
-            weights[numCounts] = 1.0;
-          }
-	  else
-	  {
-            weights[numCounts] = 0.0;
-	  }
-	  numCounts++;
-        }
-      }
-
-      if(numCounts >= 5)
-      {
-        medianHist->SetBinContent(i-medianFiltXbins+1,j-medianFiltYbins+1,TMath::Median(numCounts,&vals[0],&weights[0]));
-      }
-      else
-      {
-        medianHist->SetBinContent(i-medianFiltXbins+1,j-medianFiltYbins+1,-10000.0);
-      }
-    }
-  }
-
-  TH2F *filledHist = new TH2F("filledHist","",numFiltXbins,0,numFiltXbins,numFiltYbins,0,numFiltYbins);
-  filledHist->SetDirectory(0);
-  TGraph2D *interpGraph = new TGraph2D();
-  interpGraph->SetDirectory(0);
-  Int_t pointNum = 0;
-  for(Int_t i = 0; i < numFiltXbins; i++)
-  {
-    for(Int_t j = 0; j < numFiltYbins; j++)
-    {
-      if(medianHist->GetBinContent(i+1,j+1) > -1000.0)
-      //if(origHist->GetBinContent(i+1,j+1) > -1000.0)
-      {
-        interpGraph->SetPoint(pointNum,medianHist->GetXaxis()->GetBinCenter(i+1),medianHist->GetYaxis()->GetBinCenter(j+1),medianHist->GetBinContent(i+1,j+1));
-	//interpGraph->SetPoint(pointNum,origHist->GetXaxis()->GetBinCenter(i+1),origHist->GetYaxis()->GetBinCenter(j+1),origHist->GetBinContent(i+1,j+1));
-	pointNum++;
-      }
-    }
-  }
-  for(Int_t i = 0; i < numFiltXbins; i++)
-  {
-    for(Int_t j = 0; j < numFiltYbins; j++)
-    {
-      filledHist->SetBinContent(i+1,j+1,interpGraph->Interpolate(filledHist->GetXaxis()->GetBinCenter(i+1),filledHist->GetYaxis()->GetBinCenter(j+1)));
-    }
-  }
-  
-  TH2F *expandHist = new TH2F("expandHist","",3*numFiltXbins,0,3*numFiltXbins,3*numFiltYbins,0,3*numFiltYbins);
-  expandHist->SetDirectory(0);
-  for(Int_t i = 0; i < 3*numFiltXbins; i++)
-  {
-    for(Int_t j = 0; j < 3*numFiltYbins; j++)
-    {
-      expandHist->SetBinContent(i+1,j+1,filledHist->GetBinContent(fabs(numFiltXbins-0.5-(i%(2*numFiltXbins)))+0.5,fabs(numFiltYbins-0.5-(j%(2*numFiltYbins)))+0.5));
-    }
-  }
-  
-  TH1F **inputHist = new TH1F*[3*numFiltYbins];
-  for(Int_t j = 0; j < 3*numFiltYbins; j++)
-  {
-    inputHist[j] = new TH1F(Form("inputHist_%d",j),"",3*numFiltXbins,0,3*numFiltXbins);
-    inputHist[j]->SetDirectory(0);
-    
-    for(Int_t i = 0; i < 3*numFiltXbins; i++)
-    {
-      inputHist[j]->SetBinContent(i+1,expandHist->GetBinContent(i+1,j+1));
-    }
-  }
-
-  TH2F *resultHist = new TH2F("resultHist","",3*numFiltXbins,0,3*numFiltXbins,3*numFiltYbins,0,3*numFiltYbins);
-  resultHist->SetDirectory(0);
-  TH2F *cropHist = new TH2F("cropHist","",numFiltXbins,0,numFiltXbins,numFiltYbins,0,numFiltYbins);
-  cropHist->SetDirectory(0);
-    
-  // Do preliminary setup
-  TVirtualFFT::SetTransform(0);
-  Int_t numTotalX = 3*numFiltXbins;
-  Int_t numTotalY = 3*numFiltYbins;
-
-  // Carry out FFT for convoluted signal
-  auto rho = new Double_t[500][500];
-  auto ph = new Double_t[500][500];
-  for(Int_t i = 0; i < numTotalY; i++)
-  {
-    TH1 *hm1 = 0;
-    hm1 = inputHist[i]->FFT(hm1,"MAG");
-    TH1 *hp1 = 0;
-    hp1 = inputHist[i]->FFT(hp1,"PH");
-    for(Int_t j = 0; j < numTotalX; j++)
-    {
-      rho[i][j] = hm1->GetBinContent(j+1);
-      ph[i][j] = hp1->GetBinContent(j+1);
-    }
-    delete hm1;
-    delete hp1;
-  }
-
-  // Do deconvolution for given frequency
-  auto result_re = new Double_t[500][500];
-  auto result_im = new Double_t[500][500];
-  Double_t value_re[numTotalY];
-  Double_t value_im[numTotalY];
-  Double_t temp_re[numTotalY];
-  Double_t temp_im[numTotalY];
-  Double_t temp2_re[numTotalY];
-  Double_t temp2_im[numTotalY];
-  TVirtualFFT *ifft;
-  TVirtualFFT *ifft2;
-  TF1 *gaussFunc = new TF1("gaussFunc","gaus");
-  gaussFunc->SetParameter(0,1.0);
-  gaussFunc->SetParameter(1,0.0);
-  gaussFunc->SetParameter(2,gaussFilterWidth);
-  Double_t filterFactor;
-  for(Int_t i = 0; i < numTotalX; i++)
-  {
-    // Build vectors in wire-number-space for given frequency
-    for(Int_t j = 0; j < numTotalY; j++)
-    {
-      value_re[j] = rho[j][i]*cos(ph[j][i]);
-      value_im[j] = rho[j][i]*sin(ph[j][i]);
-    }
-  
-    // Do secondary FFT over wire number for convoluted signal
-    ifft = TVirtualFFT::FFT(1,&numTotalY,"C2CFORWARD M K");
-    ifft->SetPointsComplex(value_re,value_im);
-    ifft->Transform();
-    ifft->GetPointsComplex(temp_re,temp_im);
-
-    for(Int_t j = 0; j < numTotalY; j++)
-    {
-      filterFactor = gaussFunc->Eval(TMath::Min(((Double_t) i),((Double_t) numTotalX-i))/((Double_t) numTotalX))*gaussFunc->Eval(TMath::Min(((Double_t) j),((Double_t) numTotalY-j))/((Double_t) numTotalY)); // define filter here
-      
-      temp_re[j] = filterFactor*temp_re[j]/numTotalY;
-      temp_im[j] = filterFactor*temp_im[j]/numTotalY;
-    }
-
-    // Do anti-FFT in wire-number space
-    ifft2 = TVirtualFFT::FFT(1,&numTotalY,"C2CBACKWARD M K");
-    ifft2->SetPointsComplex(temp_re,temp_im);
-    ifft2->Transform();
-    ifft2->GetPointsComplex(temp2_re,temp2_im);
-  
-    // Prepare deconvoluted results for given frequency (on all wires)
-    for(Int_t j = 0; j < numTotalY; j++)
-    {
-      result_re[j][i] = temp2_re[j]/numTotalX;
-      result_im[j][i] = temp2_im[j]/numTotalX;
-    }
-  }
-  delete ifft;
-  delete ifft2;
-
-  // Final anti-FFT to go to time domain and store final results
-  TVirtualFFT *ifft3;
-  for(Int_t i = 0; i < numTotalY; i++)
-  {
-    ifft3 = TVirtualFFT::FFT(1,&numTotalX,"C2R M K");
-    ifft3->SetPointsComplex(result_re[i],result_im[i]);
-    ifft3->Transform();
-  
-    TH1 *fb = 0;
-    fb = TH1::TransformHisto(ifft3,fb,"Re");
-  
-    for(Int_t j = 0; j < numTotalX; j++)
-    {
-      Double_t content = fb->GetBinContent(j+1);
-      resultHist->SetBinContent(j+1,i+1,content); // fill results here
-    }
-    delete fb;
-  }
-  delete ifft3;
-  delete[] rho;
-  delete[] ph;
-  delete[] result_re;
-  delete[] result_im;
-
-  for(Int_t i = 0; i < numFiltXbins; i++)
-  {
-    for(Int_t j = 0; j < numFiltYbins; j++)
-    {
-      cropHist->SetBinContent(i+1,j+1,resultHist->GetBinContent(i+1+numFiltXbins,j+1+numFiltYbins));
-    }
-  }
-
-  // Interpolate to fix boundaries of map
-  TH2F *interpHist = new TH2F("interpHist","",tempHist->GetNbinsX(),0,tempHist->GetNbinsX(),tempHist->GetNbinsY(),0,tempHist->GetNbinsY());
-  interpHist->SetDirectory(0);
-  for(Int_t i = (edgeXbins+medianFiltXbins); i < numFiltXbins+(edgeXbins+medianFiltXbins); i++)
-  {
-    for(Int_t j = (edgeYbins+medianFiltYbins); j < numFiltYbins+(edgeYbins+medianFiltYbins); j++)
-    {
-      interpHist->SetBinContent(i+1,j+1,cropHist->GetBinContent(i+1-(edgeXbins+medianFiltXbins),j+1-(edgeYbins+medianFiltYbins)));
-      //interpHist->SetBinContent(i+1,j+1,origHist->GetBinContent(i+1-(edgeXbins+medianFiltXbins),j+1-(edgeYbins+medianFiltYbins)));
-    }
-  }
-
-  extrapolate(interpHist,(edgeXbins+medianFiltXbins),(edgeYbins+medianFiltYbins),faceNum);
-
-  for(Int_t i = 0; i < numXbins; i++)
-  {
-    for(Int_t j = 0; j < numYbins; j++)
-    {
-      if(origHist->GetBinContent(i+1,j+1) <= -1000.0)
-      {
-	origHist->SetBinContent(i+1,j+1,0.0);
-      }
-    }
-  }
-
-  for(Int_t i = 0; i < numFiltXbins; i++)
-  {
-    for(Int_t j = 0; j < numFiltYbins; j++)
-    {
-      if(medianHist->GetBinContent(i+1,j+1) <= -1000.0)
-      {
-	medianHist->SetBinContent(i+1,j+1,0.0);
-      }
-    }
-  }
-
-  if((faceNum == 0) || (faceNum == 1))
-  {
-    for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        inputMap[x][z] = interpHist->GetBinContent(z+1,x+1);
-      }
-    }
-  }
-  else if((faceNum == 2) || (faceNum == 3))
-  {
-    for(Int_t x = 0; x <= nCalibDivisions_x; x++)
-    {
-      for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-      {
-        inputMap[x][y] = interpHist->GetBinContent(x+1,y+1);
-      }
-    }
-  }
-  else
-  {
-    for(Int_t y = 0; y <= nCalibDivisions_y; y++)
-    {
-      for(Int_t z = 0; z <= nCalibDivisions_z; z++)
-      {
-        inputMap[y][z] = interpHist->GetBinContent(z+1,y+1);
-      }
-    }
-  }
-  
-  return;
-}
-
-void extrapolate(TH2F *interpHist, Int_t edgeXbins, Int_t edgeYbins, Int_t faceNum)
-{
-  for(Int_t i = edgeXbins; i < interpHist->GetNbinsX()-edgeXbins; i++)
-  {
-    std::vector<Double_t> X, Y;
-    tk::spline s;
-    
-    for(Int_t j = edgeYbins; j < interpHist->GetNbinsY()-edgeYbins; j++)
-    {
-      X.push_back(interpHist->GetYaxis()->GetBinCenter(j+1));
-      Y.push_back(interpHist->GetBinContent(i+1,j+1));
-    }
-
-    if(((faceNum == 0) || (faceNum == 1)) && (edgeYbins != 0))
-    {
-      X.push_back(interpHist->GetYaxis()->GetBinCenter(interpHist->GetNbinsY()));
-      Y.push_back(0.0);
-    }
-
-    s.set_points(X,Y);
-
-    for(Int_t k = 0; k < edgeYbins; k++)
-    {
-      interpHist->SetBinContent(i+1,k+1,s(interpHist->GetYaxis()->GetBinCenter(k+1)));
-      interpHist->SetBinContent(i+1,interpHist->GetNbinsY()-k,s(interpHist->GetYaxis()->GetBinCenter(interpHist->GetNbinsY()-k)));
-    }
-  }
-
-  for(Int_t j = edgeYbins; j < interpHist->GetNbinsY()-edgeYbins; j++)
-  {
-    std::vector<Double_t> X, Y;
-    tk::spline s;
-    
-    for(Int_t i = edgeXbins; i < interpHist->GetNbinsX()-edgeXbins; i++)
-    {
-      X.push_back(interpHist->GetXaxis()->GetBinCenter(i+1));
-      Y.push_back(interpHist->GetBinContent(i+1,j+1));
-    }
-
-    if(((faceNum == 2) || (faceNum == 3)) && (edgeXbins != 0))
-    {
-      X.push_back(interpHist->GetXaxis()->GetBinCenter(interpHist->GetNbinsX()));
-      Y.push_back(0.0);
-    }
-
-    s.set_points(X,Y);
-
-    for(Int_t k = 0; k < edgeXbins; k++)
-    {
-      interpHist->SetBinContent(k+1,j+1,s(interpHist->GetXaxis()->GetBinCenter(k+1)));
-      interpHist->SetBinContent(interpHist->GetNbinsX()-k,j+1,s(interpHist->GetXaxis()->GetBinCenter(interpHist->GetNbinsX()-k)));
-    }
-  }
-
-  for(Int_t m = 0; m < edgeXbins; m++)
-  {
-    for(Int_t n = 0; n < edgeYbins; n++)
-    {
-      std::vector<Double_t> X1, Y1;
-      tk::spline s1;
-
-      std::vector<Double_t> X2, Y2;
-      tk::spline s2;
-
-      std::vector<Double_t> X3, Y3;
-      tk::spline s3;
-
-      std::vector<Double_t> X4, Y4;
-      tk::spline s4;
-
-      for(Int_t j = edgeYbins; j < interpHist->GetNbinsY()-edgeYbins; j++)
-      {
-        X1.push_back(interpHist->GetYaxis()->GetBinCenter(j+1));
-        Y1.push_back(interpHist->GetBinContent(m+1,j+1));
-      }
-
-      if(((faceNum == 0) || (faceNum == 1)) && (edgeYbins != 0))
-      {
-        X1.push_back(interpHist->GetYaxis()->GetBinCenter(interpHist->GetNbinsY()));
-        Y1.push_back(0.0);
-      }
-
-      s1.set_points(X1,Y1);
-
-      for(Int_t i = edgeXbins; i < interpHist->GetNbinsX()-edgeXbins; i++)
-      {
-        X2.push_back(interpHist->GetXaxis()->GetBinCenter(i+1));
-        Y2.push_back(interpHist->GetBinContent(i+1,n+1));	
-      }
-
-      if(((faceNum == 2) || (faceNum == 3)) && (edgeXbins != 0))
-      {
-        X2.push_back(interpHist->GetXaxis()->GetBinCenter(interpHist->GetNbinsX()));
-        Y2.push_back(0.0);
-      }
-
-      s2.set_points(X2,Y2);
-
-      for(Int_t j = edgeYbins; j < interpHist->GetNbinsY()-edgeYbins; j++)
-      {
-        X3.push_back(interpHist->GetYaxis()->GetBinCenter(j+1));
-        Y3.push_back(interpHist->GetBinContent(interpHist->GetNbinsX()-m,j+1));
-      }
-
-      if(((faceNum == 0) || (faceNum == 1)) && (edgeYbins != 0))
-      {
-        X3.push_back(interpHist->GetYaxis()->GetBinCenter(interpHist->GetNbinsY()));
-        Y3.push_back(0.0);
-      }
-
-      s3.set_points(X3,Y3);
-
-      for(Int_t i = edgeXbins; i < interpHist->GetNbinsX()-edgeXbins; i++)
-      {
-        X4.push_back(interpHist->GetXaxis()->GetBinCenter(i+1));
-        Y4.push_back(interpHist->GetBinContent(i+1,interpHist->GetNbinsY()-n));	
-      }
-
-      if(((faceNum == 2) || (faceNum == 3)) && (edgeXbins != 0))
-      {
-        X4.push_back(interpHist->GetXaxis()->GetBinCenter(interpHist->GetNbinsX()));
-        Y4.push_back(0.0);
-      }
-
-      s4.set_points(X4,Y4);
-
-      interpHist->SetBinContent(m+1,n+1,(s1(interpHist->GetYaxis()->GetBinCenter(n+1))+s2(interpHist->GetXaxis()->GetBinCenter(m+1)))/2.0);
-      interpHist->SetBinContent(m+1,interpHist->GetNbinsY()-n,(s1(interpHist->GetYaxis()->GetBinCenter(interpHist->GetNbinsY()-n))+s4(interpHist->GetXaxis()->GetBinCenter(m+1)))/2.0);
-      interpHist->SetBinContent(interpHist->GetNbinsX()-m,n+1,(s3(interpHist->GetYaxis()->GetBinCenter(n+1))+s2(interpHist->GetXaxis()->GetBinCenter(interpHist->GetNbinsX()-m)))/2.0);
-      interpHist->SetBinContent(interpHist->GetNbinsX()-m,interpHist->GetNbinsY()-n,(s3(interpHist->GetYaxis()->GetBinCenter(interpHist->GetNbinsY()-n))+s4(interpHist->GetXaxis()->GetBinCenter(interpHist->GetNbinsX()-m)))/2.0);
-    }
-  }
-
-  return;
-}
-
-Double_t getFaceCorr(Double_t xVal, Double_t yVal, Double_t zVal, Int_t faceNum, Int_t comp)
+Double_t getOffset(Double_t xVal, Double_t yVal, Double_t zVal, Int_t comp, Int_t calibMode)
 {
   Double_t offset = 0.0;
   
@@ -4620,135 +1446,54 @@ Double_t getFaceCorr(Double_t xVal, Double_t yVal, Double_t zVal, Int_t faceNum,
     zVal = Lz-0.00001;
   }
 
-  if ((faceNum == 0) && (comp == 1)) {
-    offset = faceCalibHistTopDeltaX->Interpolate(zVal,xVal);
+  if ((isMC == true) && (isSCEon == true)) {
+    if (calibMode == 0) {
+      if (comp == 1) {
+        offset = TrueFwdDeltaX->Interpolate(xVal,yVal,zVal);
+      }
+      else if (comp == 2) {
+        offset = TrueFwdDeltaY->Interpolate(xVal,yVal,zVal);
+      }
+      else if (comp == 3) {
+        offset = TrueFwdDeltaZ->Interpolate(xVal,yVal,zVal);
+      }
+    }
+    else if (calibMode == 1) {
+      if (comp == 1) {
+        offset = TrueBkwdDeltaX->Interpolate(xVal,yVal,zVal);
+      }
+      else if (comp == 2) {
+        offset = TrueBkwdDeltaY->Interpolate(xVal,yVal,zVal);
+      }
+      else if (comp == 3) {
+        offset = TrueBkwdDeltaZ->Interpolate(xVal,yVal,zVal);
+      }
+    }
   }
-  else if ((faceNum == 0) && (comp == 2)) {
-    offset = faceCalibHistTopDeltaY->Interpolate(zVal,xVal);
-  }
-  else if ((faceNum == 0) && (comp == 3)) {
-    offset = faceCalibHistTopDeltaZ->Interpolate(zVal,xVal);
-  }
-  if ((faceNum == 1) && (comp == 1)) {
-    offset = faceCalibHistBottomDeltaX->Interpolate(zVal,xVal);
-  }
-  else if ((faceNum == 1) && (comp == 2)) {
-    offset = faceCalibHistBottomDeltaY->Interpolate(zVal,xVal);
-  }
-  else if ((faceNum == 1) && (comp == 3)) {
-    offset = faceCalibHistBottomDeltaZ->Interpolate(zVal,xVal);
-  }
-  if ((faceNum == 2) && (comp == 1)) {
-    offset = faceCalibHistUpstreamDeltaX->Interpolate(xVal,yVal);
-  }
-  else if ((faceNum == 2) && (comp == 2)) {
-    offset = faceCalibHistUpstreamDeltaY->Interpolate(xVal,yVal);
-  }
-  else if ((faceNum == 2) && (comp == 3)) {
-    offset = faceCalibHistUpstreamDeltaZ->Interpolate(xVal,yVal);
-  }
-  if ((faceNum == 3) && (comp == 1)) {
-    offset = faceCalibHistDownstreamDeltaX->Interpolate(xVal,yVal);
-  }
-  else if ((faceNum == 3) && (comp == 2)) {
-    offset = faceCalibHistDownstreamDeltaY->Interpolate(xVal,yVal);
-  }
-  else if ((faceNum == 3) && (comp == 3)) {
-    offset = faceCalibHistDownstreamDeltaZ->Interpolate(xVal,yVal);
-  }
-  if ((faceNum == 4) && (comp == 1)) {
-    offset = faceCalibHistCathodeDeltaX->Interpolate(zVal,yVal);
-  }
-  else if ((faceNum == 4) && (comp == 2)) {
-    offset = faceCalibHistCathodeDeltaY->Interpolate(zVal,yVal);
-  }
-  else if ((faceNum == 4) && (comp == 3)) {
-    offset = faceCalibHistCathodeDeltaZ->Interpolate(zVal,yVal);
-  }
-  
-  return offset;
-}
-
-Double_t getBulkCorr(Double_t xVal, Double_t yVal, Double_t zVal, Int_t comp)
-{
-  Double_t offset = 0.0;
-  
-  if (xVal < 0.00001) {
-    xVal = 0.00001;
-  }
-  if (xVal > Lx-0.00001) {
-    xVal = Lx-0.00001;
-  }
-
-  if (yVal < 0.00001) {
-    yVal = 0.00001;
-  }
-  if (yVal > Ly-0.00001) {
-    yVal = Ly-0.00001;
-  }
-
-  if (zVal < 0.00001) {
-    zVal = 0.00001;
-  }
-  if (zVal > Lz-0.00001) {
-    zVal = Lz-0.00001;
-  }
-
-  if (comp == 1) {
-    offset = bulkCalibHistDeltaX->Interpolate(xVal,yVal,zVal);
-  }
-  else if (comp == 2) {
-    offset = bulkCalibHistDeltaY->Interpolate(xVal,yVal,zVal);
-  }
-  else if (comp == 3) {
-    offset = bulkCalibHistDeltaZ->Interpolate(xVal,yVal,zVal);
+  else if (isMC == false) {
+    if (calibMode == 0) {
+      if (comp == 1) {
+        offset = RecoFwdDeltaX->Interpolate(xVal,yVal,zVal);
+      }
+      else if (comp == 2) {
+        offset = RecoFwdDeltaY->Interpolate(xVal,yVal,zVal);
+      }
+      else if (comp == 3) {
+        offset = RecoFwdDeltaZ->Interpolate(xVal,yVal,zVal);
+      }
+    }
+    else if (calibMode == 1) {
+      if (comp == 1) {
+        offset = RecoBkwdDeltaX->Interpolate(xVal,yVal,zVal);
+      }
+      else if (comp == 2) {
+        offset = RecoBkwdDeltaY->Interpolate(xVal,yVal,zVal);
+      }
+      else if (comp == 3) {
+        offset = RecoBkwdDeltaZ->Interpolate(xVal,yVal,zVal);
+      }
+    }
   }
   
-  return offset;
-}
-
-Double_t getCathodeCorr(Double_t yVal, Double_t zVal, Int_t comp)
-{
-  Double_t offset = 0.0;
-  
-  if (yVal < 0.00001) {
-    yVal = 0.00001;
-  }
-  if (yVal > Ly-0.00001) {
-    yVal = Ly-0.00001;
-  }
-
-  if (zVal < 0.00001) {
-    zVal = 0.00001;
-  }
-  if (zVal > Lz-0.00001) {
-    zVal = Lz-0.00001;
-  }
-
-  Double_t corr_top = getFaceCorr(TrueCathode+OffsetCathodeReco/2.0,yVal,zVal,0,2);
-  Double_t corr_bottom = getFaceCorr(TrueCathode+OffsetCathodeReco/2.0,yVal,zVal,1,2);
-  Double_t SF_top = fabs(corr_top/faceSimHistCathodeDeltaY->Interpolate(zVal,TrueTop-corr_top));
-  Double_t SF_bottom = fabs(corr_bottom/faceSimHistCathodeDeltaY->Interpolate(zVal,TrueBottom-corr_bottom));
-
-  Double_t frac = (yVal-TrueBottom)/(TrueTop-TrueBottom);
-  if(frac > 1.0) {
-    frac = 1.0;
-  }
-  else if(frac < 0.0) {
-    frac = 0.0;
-  }
-
-  Double_t SF = frac*SF_top + (1.0-frac)*SF_bottom;
-  
-  if (comp == 1) {
-    offset = SF*faceSimHistCathodeDeltaX->Interpolate(zVal,yVal);
-  }
-  else if (comp == 2) {
-    offset = SF*faceSimHistCathodeDeltaY->Interpolate(zVal,yVal);
-  }
-  else if (comp == 3) {
-    offset = SF*faceSimHistCathodeDeltaZ->Interpolate(zVal,yVal);
-  }
-
   return offset;
 }

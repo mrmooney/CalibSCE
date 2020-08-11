@@ -1,6 +1,0 @@
-/home/mooney/work/CalibSCE/CGALinterp/CMakeFiles/install.dir
-/home/mooney/work/CalibSCE/CGALinterp/CMakeFiles/list_install_components.dir
-/home/mooney/work/CalibSCE/CGALinterp/CMakeFiles/FieldCorrection.dir
-/home/mooney/work/CalibSCE/CGALinterp/CMakeFiles/install/local.dir
-/home/mooney/work/CalibSCE/CGALinterp/CMakeFiles/rebuild_cache.dir
-/home/mooney/work/CalibSCE/CGALinterp/CMakeFiles/edit_cache.dir
