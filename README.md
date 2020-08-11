@@ -1,6 +1,6 @@
 # CalibSCE
 
-This code package produces a 3D SCE spatial calibration for MicroBooNE using a set of near-crossing t0-tagged cosmic muon tracks from data or MC (CalibSCE.cpp).  Addtional applications are included to smooth the resultant 3D spatial distortion maps (MakeSmoothHists.cpp), produce associated smooth E field maps (MakeSmoothHists.cpp), and extract systematic biases on these measurements using a set of laser tracks from the MicroBooNE UV laser system (MakeSystVar.cpp).
+This code package produces a 3D SCE spatial calibration for MicroBooNE using a set of near-crossing t0-tagged cosmic muon tracks from data or MC (CalibSCE.cpp).  Additional applications are included to smooth the resultant 3D spatial distortion maps (MakeSmoothHists.cpp), produce associated smooth E field maps (MakeSmoothHists.cpp), and extract systematic biases on these measurements using a set of laser tracks from the MicroBooNE UV laser system (MakeSystVar.cpp).
 
 First one must obtain input cosmic muon track files (data and MC) from the FNAL machines and place them in the "data" folder (or change the file path in the application code if running on the FNAL machines).  These files are currently located here:
 
@@ -12,7 +12,7 @@ Another preliminary step is building the code to produce the calibration applica
 
 ```$ make```
 
-To build the initial 3D SCE spatial calibration maps, run the following command:
+To produce the initial 3D SCE spatial calibration maps, run the following command:
 
 ```$ ./CalibSCE```
 
